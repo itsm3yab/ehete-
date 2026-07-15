@@ -19,6 +19,7 @@ import {
   type HandlerStateChangeEvent,
   type PanGestureHandlerEventPayload,
 } from 'react-native-gesture-handler';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,7 +58,7 @@ export default function FeedScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { state, dispatch } = useApp();
   const { onScroll, hideTabBar, showTabBar } = useTabBarScroll();
-  const { mode } = useTheme();
+  const { mode, isDark } = useTheme();
   const { requireAuth } = useAuthGate();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -348,7 +349,9 @@ export default function FeedScreen({ navigation }: any) {
         transparent
         animationType="fade"
         onRequestClose={closeDrawer}
+        statusBarTranslucent={false}
       >
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <View style={styles.drawerRoot}>
           <Pressable style={styles.drawerScrim} onPress={closeDrawer} />
           <View

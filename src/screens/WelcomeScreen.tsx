@@ -1,20 +1,16 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import {
   Dimensions,
   FlatList,
   Image,
-  Platform,
   Pressable,
-  StatusBar as RNStatusBar,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { StatusBar, setStatusBarStyle, setStatusBarHidden } from 'expo-status-bar';
-import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { typography, fontWeight, radius, useColors, useTheme, ColorPalette } from '../store/theme';
+import { typography, fontWeight, radius, useColors, ColorPalette } from '../store/theme';
 import { useThemedStyles } from '../store/useThemedStyles';
 
 const { width } = Dimensions.get('window');
@@ -25,7 +21,7 @@ const slides = [
     id: '1',
     icon: 'chatbubbles',
     title: 'Speak Your Mind',
-    desc: 'Share what\'s weighing on you without holding back. No names, no judgment — just real talk between men.',
+    desc: "Share what's weighing on you without holding back. No names, no judgment — just real talk between men.",
   },
   {
     id: '2',
@@ -37,50 +33,19 @@ const slides = [
     id: '3',
     icon: 'people',
     title: 'Brothers in It Together',
-    desc: 'Connect with other men who\'ve walked the same path. Read, relate, and find strength in shared stories.',
+    desc: "Connect with other men who've walked the same path. Read, relate, and find strength in shared stories.",
   },
 ];
 
 export default function WelcomeScreen({ navigation }: any) {
   const styles = useThemedStyles(makeWelcomeStyles);
   const colors = useColors();
-  const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const flatRef = useRef<FlatList>(null);
   const [index, setIndex] = useState(0);
   const touchStart = useRef(0);
 
   const isLast = index === slides.length - 1;
-  const statusStyle = isDark ? 'light' : 'dark';
-  const topInset = Math.max(
-    insets.top,
-    Platform.OS === 'android' ? RNStatusBar.currentHeight ?? 28 : 0
-  );
-
-  const applyStatusBar = useCallback(() => {
-    setStatusBarHidden(false, 'none');
-    setStatusBarStyle(statusStyle);
-    if (Platform.OS === 'android') {
-      try {
-        RNStatusBar.setHidden(false);
-        RNStatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content', true);
-      } catch {
-        // ignore API gaps on edge-to-edge devices
-      }
-    }
-  }, [isDark, statusStyle]);
-
-  useFocusEffect(
-    useCallback(() => {
-      applyStatusBar();
-      const t = setTimeout(applyStatusBar, 50);
-      return () => clearTimeout(t);
-    }, [applyStatusBar])
-  );
-
-  useEffect(() => {
-    applyStatusBar();
-  }, [applyStatusBar]);
 
   const handleNext = useCallback(() => {
     if (isLast) return;
@@ -109,11 +74,11 @@ export default function WelcomeScreen({ navigation }: any) {
       const diff = touchStart.current - e.nativeEvent.pageX;
       if (diff > SWIPE_THRESHOLD && !isLast) handleNext();
     },
-    [isLast, handleNext],
+    [isLast, handleNext]
   );
 
-  const renderSlide = useCallback(({ item }: any) => {
-    return (
+  const renderSlide = useCallback(
+    ({ item }: any) => (
       <View style={styles.slide}>
         <View style={styles.iconWrap}>
           <Ionicons name={item.icon} size={48} color={colors.accent} />
@@ -121,15 +86,18 @@ export default function WelcomeScreen({ navigation }: any) {
         <Text style={styles.slideTitle}>{item.title}</Text>
         <Text style={styles.slideDesc}>{item.desc}</Text>
       </View>
-    );
-  }, []);
+    ),
+    [styles, colors.accent]
+  );
 
   const keyExtractor = useCallback((item: any) => item.id, []);
 
   return (
-    <View style={[styles.container, { paddingTop: topInset }]}>
-      <StatusBar style={statusStyle} hidden={false} />
-      <View style={styles.topSection}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.bg }]}
+      edges={['top', 'bottom']}
+    >
+      <View style={[styles.topSection, { paddingTop: Math.max(insets.top > 0 ? 0 : 8, 8) }]}>
         <Image
           source={require('../../assets/icon.png')}
           style={styles.brandIcon}
@@ -152,7 +120,6 @@ export default function WelcomeScreen({ navigation }: any) {
         scrollEnabled={!isLast}
       />
 
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: colors.bg }}>
       <View style={styles.bottomSection}>
         <View style={styles.dots}>
           {slides.map((_, i) => (
@@ -194,129 +161,126 @@ export default function WelcomeScreen({ navigation }: any) {
       <Text style={styles.disclaimer}>
         By continuing, you agree to our Terms of Service and Privacy Policy.
       </Text>
-      </SafeAreaView>
-    </View>
+    </SafeAreaView>
   );
 }
 
-
-
 function makeWelcomeStyles(colors: ColorPalette) {
   return {
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    paddingBottom: 16,
-  },
-  topSection: {
-    paddingHorizontal: 28,
-    paddingTop: 8,
-  },
-  brandIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-  },
-  slide: {
-    width,
-    paddingHorizontal: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 20,
-  },
-  iconWrap: {
-    width: 96,
-    height: 96,
-    borderRadius: radius.xl,
-    backgroundColor: colors.accentDim,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 32,
-  },
-  slideTitle: {
-    fontSize: typography.xxl,
-    fontWeight: fontWeight.extrabold,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: 14,
-  },
-  slideDesc: {
-    fontSize: typography.md,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 26,
-    paddingHorizontal: 8,
-  },
-  bottomSection: {
-    paddingHorizontal: 28,
-    gap: 28,
-    paddingTop: 12,
-  },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.border,
-  },
-  dotActive: {
-    width: 24,
-    backgroundColor: colors.accent,
-    borderRadius: 4,
-  },
-  nextBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.accent,
-    paddingVertical: 16,
-    borderRadius: radius.full,
-  },
-  nextBtnText: {
-    color: '#fff',
-    fontWeight: fontWeight.bold,
-    fontSize: typography.base,
-    letterSpacing: 0.2,
-  },
-  actions: {
-    gap: 12,
-  },
-  googleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 15,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bgElevated,
-  },
-  googleBtnText: {
-    color: colors.textPrimary,
-    fontWeight: fontWeight.semibold,
-    fontSize: typography.base,
-  },
-  guestBtn: {
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  guestText: {
-    color: colors.textSecondary,
-    fontSize: typography.sm,
-    fontWeight: fontWeight.medium,
-  },
-  disclaimer: {
-    color: colors.textMeta,
-    fontSize: typography.xs,
-    textAlign: 'center',
-    paddingTop: 20,
-    paddingHorizontal: 28,
-  },
-};
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+      paddingBottom: 16,
+    },
+    topSection: {
+      paddingHorizontal: 28,
+      paddingTop: 8,
+    },
+    brandIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+    },
+    slide: {
+      width,
+      paddingHorizontal: 40,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingTop: 20,
+    },
+    iconWrap: {
+      width: 96,
+      height: 96,
+      borderRadius: radius.xl,
+      backgroundColor: colors.accentDim,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      marginBottom: 32,
+    },
+    slideTitle: {
+      fontSize: typography.xxl,
+      fontWeight: fontWeight.extrabold,
+      color: colors.textPrimary,
+      textAlign: 'center' as const,
+      marginBottom: 14,
+    },
+    slideDesc: {
+      fontSize: typography.md,
+      color: colors.textSecondary,
+      textAlign: 'center' as const,
+      lineHeight: 26,
+      paddingHorizontal: 8,
+    },
+    bottomSection: {
+      paddingHorizontal: 28,
+      gap: 28,
+      paddingTop: 12,
+    },
+    dots: {
+      flexDirection: 'row' as const,
+      justifyContent: 'center' as const,
+      gap: 8,
+    },
+    dot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.border,
+    },
+    dotActive: {
+      width: 24,
+      backgroundColor: colors.accent,
+      borderRadius: 4,
+    },
+    nextBtn: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 8,
+      backgroundColor: colors.accent,
+      paddingVertical: 16,
+      borderRadius: radius.full,
+    },
+    nextBtnText: {
+      color: '#fff',
+      fontWeight: fontWeight.bold,
+      fontSize: typography.base,
+      letterSpacing: 0.2,
+    },
+    actions: {
+      gap: 12,
+    },
+    googleBtn: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 10,
+      paddingVertical: 15,
+      borderRadius: radius.full,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.bgElevated,
+    },
+    googleBtnText: {
+      color: colors.textPrimary,
+      fontWeight: fontWeight.semibold,
+      fontSize: typography.base,
+    },
+    guestBtn: {
+      alignItems: 'center' as const,
+      paddingVertical: 10,
+    },
+    guestText: {
+      color: colors.textSecondary,
+      fontSize: typography.sm,
+      fontWeight: fontWeight.medium,
+    },
+    disclaimer: {
+      color: colors.textMeta,
+      fontSize: typography.xs,
+      textAlign: 'center' as const,
+      paddingTop: 20,
+      paddingHorizontal: 28,
+    },
+  };
 }

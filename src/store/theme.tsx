@@ -124,7 +124,7 @@ const ThemeContext = createContext<ThemeContextValue>({
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { prefs } = usePrefs();
-  const mode: 'dark' | 'light' = prefs.themeMode === 'light' ? 'light' : 'dark';
+  const mode: 'dark' | 'light' = prefs.themeMode === 'dark' ? 'dark' : 'light';
   const palette = getColors(mode);
   colors = palette;
 

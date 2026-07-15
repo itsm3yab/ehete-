@@ -13,9 +13,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../store/AppContext';
-import { useColors, typography, fontWeight, radius, ColorPalette } from '../store/theme';
+import { useColors, useTheme, typography, fontWeight, radius, ColorPalette } from '../store/theme';
 import { navigate } from '../navigation/navigationRef';
 
 type AuthGateContextValue = {
@@ -40,6 +41,7 @@ export function useAuthGate() {
 export function AuthGateProvider({ children }: { children: React.ReactNode }) {
   const { state } = useApp();
   const colors = useColors();
+  const { isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [visible, setVisible] = useState(false);
   const [message, setMessage] = useState('Sign in to continue');
@@ -85,6 +87,7 @@ export function AuthGateProvider({ children }: { children: React.ReactNode }) {
         onRequestClose={close}
         statusBarTranslucent={false}
       >
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <View style={styles.backdrop}>
           <View style={styles.sheet}>
             <View style={styles.iconWrap}>
