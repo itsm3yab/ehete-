@@ -1,9 +1,8 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useRef, memo } from 'react';
 import {
   Animated,
   Pressable,
   Share,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -13,6 +12,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { Confession } from '../types';
 import { useColors, useTheme, typography, fontWeight, radius, ColorPalette } from '../store/theme';
+import { useThemedStyles } from '../store/useThemedStyles';
 import { getCategoryTheme, formatCount, categoryInitial, timeAgo, estimatedViews } from './utils';
 import { useApp } from '../store/AppContext';
 import { useAuthGate } from './AuthGate';
@@ -24,12 +24,12 @@ interface Props {
   showDelete?: boolean;
 }
 
-export default function ConfessionCard({ confession, onPress, showDelete = false }: Props) {
+function ConfessionCard({ confession, onPress, showDelete = false }: Props) {
   const { state, dispatch } = useApp();
   const { requireAuth } = useAuthGate();
   const colors = useColors();
   const { mode } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useThemedStyles(createStyles);
   const swipeRef = useRef<Swipeable>(null);
 
   const isUpvoted = state.upvotedIds.has(confession.id);
@@ -196,7 +196,7 @@ export default function ConfessionCard({ confession, onPress, showDelete = false
             </TouchableOpacity>
 
             <View style={styles.actionBtn}>
-              <Ionicons name="bar-chart-outline" size={17} color={colors.voteDefault} />
+              <Ionicons name="eye-outline" size={17} color={colors.voteDefault} />
               <Text style={styles.actionCount}>{formatCount(views)}</Text>
             </View>
 
@@ -228,10 +228,12 @@ export default function ConfessionCard({ confession, onPress, showDelete = false
   );
 }
 
+export default memo(ConfessionCard);
+
 function createStyles(colors: ColorPalette) {
-  return StyleSheet.create({
+  return {
     card: {
-      flexDirection: 'row',
+      flexDirection: 'row' as const,
       paddingHorizontal: 16,
       paddingVertical: 13,
       borderBottomWidth: 0.5,
@@ -326,9 +328,9 @@ function createStyles(colors: ColorPalette) {
     },
     rightActions: {
       flex: 1,
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
+      flexDirection: 'row' as const,
+      justifyContent: 'flex-end' as const,
       gap: 14,
     },
-  });
+  };
 }

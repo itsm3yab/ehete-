@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useMemo, ReactNode } from 'react';
 import { Confession, Reply, SortMode, Poll } from '../types';
 import { mockConfessions } from '../data/mockConfessions';
 import { mockReplies } from '../data/mockReplies';
@@ -337,13 +337,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    // Load mock data on next frame — no artificial 1.2s wait
+    const id = requestAnimationFrame(() => {
       dispatch({ type: 'LOAD_DATA' });
-    }, 1200);
-    return () => clearTimeout(timer);
+    });
+    return () => cancelAnimationFrame(id);
   }, []);
 
-  return <AppContext.Provider value={{ state, dispatch }}>{children}</AppContext.Provider>;
+  const value = useMemo(() => ({ state, dispatch }), [state]);
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
 export function useApp() {

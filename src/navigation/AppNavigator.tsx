@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   LayoutChangeEvent,
@@ -22,8 +22,6 @@ import { navigationRef } from './navigationRef';
 import { hapticSelect } from '../utils/haptics';
 
 import WelcomeScreen from '../screens/WelcomeScreen';
-import LoginScreen from '../screens/LoginScreen';
-import SignupScreen from '../screens/SignupScreen';
 import FeedScreen from '../screens/FeedScreen';
 import SearchScreen from '../screens/SearchScreen';
 import PostScreen from '../screens/PostScreen';
@@ -64,8 +62,6 @@ function AuthStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.bg } }}>
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
-      <Stack.Screen name="Login" component={LoginScreen} options={{ ...PushOptionsBase, cardStyle: { backgroundColor: colors.bg } }} />
-      <Stack.Screen name="Signup" component={SignupScreen} options={{ ...PushOptionsBase, cardStyle: { backgroundColor: colors.bg } }} />
     </Stack.Navigator>
   );
 }
@@ -86,8 +82,6 @@ function FeedStack() {
       <Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} options={push} />
       <Stack.Screen name="AppearanceSettings" component={AppearanceSettingsScreen} options={push} />
       <Stack.Screen name="About" component={AboutScreen} options={push} />
-      <Stack.Screen name="Login" component={LoginScreen} options={push} />
-      <Stack.Screen name="Signup" component={SignupScreen} options={push} />
     </Stack.Navigator>
   );
 }
@@ -119,8 +113,8 @@ function TabBar({ state, descriptors, navigation }: any) {
   const [barWidth, setBarWidth] = useState(0);
   const lensX = useRef(new Animated.Value(0)).current;
   const lensScale = useRef(new Animated.Value(1)).current;
-  const inactive = isDark ? '#8E8E93' : '#0f1419';
-  const active = isDark ? TG.active : '#0f1419';
+  const inactive = isDark ? '#8E8E93' : colors.navIcon;
+  const active = colors.accent;
   const tabCount = state.routes.length;
   const tabW = barWidth > 0 ? barWidth / tabCount : 0;
 
@@ -166,7 +160,7 @@ function TabBar({ state, descriptors, navigation }: any) {
       style={[
         styles.dock,
         {
-          paddingBottom: Math.max(insets.bottom, 10),
+          paddingBottom: Math.max(insets.bottom, 8) + 14,
           transform: [{ translateY }],
         },
       ]}
@@ -198,7 +192,7 @@ function TabBar({ state, descriptors, navigation }: any) {
                 styles.lens,
                 {
                   width: tabW - 8,
-                  backgroundColor: isDark ? '#111111' : colors.bgElevated,
+                  backgroundColor: isDark ? colors.accentDim : colors.accentDim,
                   transform: [
                     { translateX: Animated.add(lensX, 4) },
                     { scale: lensScale },
@@ -273,6 +267,8 @@ function MainTabs() {
         screenOptions={{
           headerShown: false,
           tabBarHideOnKeyboard: true,
+          lazy: true,
+          freezeOnBlur: true,
           sceneStyle: { backgroundColor: colors.bg },
         }}
       >
@@ -314,19 +310,22 @@ function RootNavigator() {
 
 export default function AppNavigator() {
   const { colors, isDark } = useTheme();
-  const navTheme = {
-    ...DefaultTheme,
-    dark: isDark,
-    colors: {
-      ...DefaultTheme.colors,
-      primary: colors.accent,
-      background: colors.bg,
-      card: colors.bgCard,
-      text: colors.textPrimary,
-      border: colors.border,
-      notification: colors.accent,
-    },
-  };
+  const navTheme = useMemo(
+    () => ({
+      ...DefaultTheme,
+      dark: isDark,
+      colors: {
+        ...DefaultTheme.colors,
+        primary: colors.accent,
+        background: colors.bg,
+        card: colors.bgCard,
+        text: colors.textPrimary,
+        border: colors.border,
+        notification: colors.accent,
+      },
+    }),
+    [colors, isDark]
+  );
   return (
     <NavigationContainer ref={navigationRef} theme={navTheme}>
       <AuthGateProvider>
@@ -342,7 +341,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: TG.side,
+    paddingHorizontal: TG.side + 4,
     alignItems: 'center',
   },
   bar: {

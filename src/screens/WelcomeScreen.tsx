@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
   Dimensions,
   FlatList,
@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { CommonActions } from '@react-navigation/native';
+import { CommonActions, useRoute } from '@react-navigation/native';
 import { useApp } from '../store/AppContext';
 import { usePrefs, AppLanguage, ThemeMode } from '../store/preferences';
 import { typography, fontWeight, radius, useColors, ColorPalette } from '../store/theme';
@@ -94,11 +94,22 @@ export default function WelcomeScreen({ navigation }: any) {
   const colors = useColors();
   const { dispatch } = useApp();
   const { prefs, setPref } = usePrefs();
+  const route = useRoute<any>();
   const flatRef = useRef<FlatList>(null);
-  const [index, setIndex] = useState(0);
+  const lastIndex = slides.length - 1;
+  const startAtEnd = !!route.params?.startAtEnd;
+  const [index, setIndex] = useState(startAtEnd ? lastIndex : 0);
   const touchStart = useRef(0);
 
-  const isLast = index === slides.length - 1;
+  const isLast = index === lastIndex;
+
+  useEffect(() => {
+    if (!startAtEnd) return;
+    const id = requestAnimationFrame(() => {
+      flatRef.current?.scrollToIndex({ index: lastIndex, animated: false });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [startAtEnd, lastIndex]);
 
   const goMain = useCallback(() => {
     navigation.dispatch(
@@ -162,6 +173,7 @@ export default function WelcomeScreen({ navigation }: any) {
                       key={lang.id}
                       style={[styles.langChip, active && styles.choiceChipActive]}
                       onPress={() => {
+                        if (active) return;
                         hapticSelect();
                         setPref('language', lang.id);
                       }}
@@ -186,6 +198,7 @@ export default function WelcomeScreen({ navigation }: any) {
                       key={theme.id}
                       style={[styles.themeChip, active && styles.choiceChipActive]}
                       onPress={() => {
+                        if (active) return;
                         hapticSelect();
                         setPref('themeMode', theme.id);
                       }}
@@ -229,6 +242,16 @@ export default function WelcomeScreen({ navigation }: any) {
       style={[styles.container, { backgroundColor: colors.bg }]}
       edges={['top', 'bottom']}
     >
+      <TouchableOpacity
+        style={styles.skipBtn}
+        onPress={() => goToSlide(lastIndex)}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        accessibilityRole="button"
+        accessibilityLabel="Skip to sign in"
+      >
+        <Ionicons name="close" size={18} color={colors.textMeta} />
+      </TouchableOpacity>
+
       <FlatList
         ref={flatRef}
         data={slides}
@@ -242,6 +265,13 @@ export default function WelcomeScreen({ navigation }: any) {
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         scrollEnabled={!isLast}
+        initialScrollIndex={startAtEnd ? lastIndex : 0}
+        getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+        onScrollToIndexFailed={(info) => {
+          setTimeout(() => {
+            flatRef.current?.scrollToIndex({ index: info.index, animated: false });
+          }, 50);
+        }}
       />
 
       <View style={styles.bottomSection}>
@@ -295,6 +325,17 @@ function makeWelcomeStyles(colors: ColorPalette) {
       flex: 1,
       backgroundColor: colors.bg,
       paddingBottom: 16,
+    },
+    skipBtn: {
+      position: 'absolute' as const,
+      top: 10,
+      right: 16,
+      zIndex: 10,
+      width: 28,
+      height: 28,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      opacity: 0.35,
     },
     slide: {
       width,

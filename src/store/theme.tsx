@@ -125,7 +125,8 @@ const ThemeContext = createContext<ThemeContextValue>({
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { prefs } = usePrefs();
   const mode: 'dark' | 'light' = prefs.themeMode === 'dark' ? 'dark' : 'light';
-  const palette = getColors(mode);
+  // Stable palette identity — never recreate the color object
+  const palette = mode === 'light' ? lightColors : darkColors;
   colors = palette;
 
   const value = useMemo(

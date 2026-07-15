@@ -1,6 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +15,8 @@ import { useThemedStyles } from '../store/useThemedStyles';
 import { formatCount } from '../components/utils';
 import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 import { useAuthGate } from '../components/AuthGate';
+import SignOutModal from '../components/SignOutModal';
+import { goToSignIn } from '../navigation/navigationRef';
 
 export default function ProfileScreen({ navigation }: any) {
   const styles = useThemedStyles(makeProfileStyles);
@@ -23,6 +24,7 @@ export default function ProfileScreen({ navigation }: any) {
   const { state, dispatch } = useApp();
   const { onScroll } = useTabBarScroll();
   const { requireAuth } = useAuthGate();
+  const [signOutOpen, setSignOutOpen] = useState(false);
   const isGuest = !state.isLoggedIn;
 
   const username = isGuest ? 'Guest' : state.username;
@@ -34,18 +36,10 @@ export default function ProfileScreen({ navigation }: any) {
   const totalReplies = myConfessions.reduce((s, c) => s + c.replyCount, 0);
   const savedCount = isGuest ? 0 : state.savedIds.size;
 
-  const handleLogout = () => {
-    Alert.alert('Sign Out?', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: () => {
-          dispatch({ type: 'LOGOUT' });
-          navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Auth' }] }));
-        },
-      },
-    ]);
+  const confirmLogout = () => {
+    setSignOutOpen(false);
+    dispatch({ type: 'LOGOUT' });
+    navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Auth' }] }));
   };
 
   const openAuthed = (screen: string, reason: string) => {
@@ -71,7 +65,7 @@ export default function ProfileScreen({ navigation }: any) {
             </View>
             <TouchableOpacity
               style={styles.bannerSignInBtn}
-              onPress={() => navigation.navigate('Login')}
+              onPress={() => goToSignIn()}
               accessibilityRole="button"
             >
               <Text style={styles.bannerSignInText}>Sign In</Text>
@@ -106,13 +100,10 @@ export default function ProfileScreen({ navigation }: any) {
           <View style={styles.guestActions}>
             <TouchableOpacity
               style={styles.signInBtn}
-              onPress={() => navigation.navigate('Login')}
+              onPress={() => goToSignIn()}
               accessibilityRole="button"
             >
               <Text style={styles.signInText}>Sign In</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-              <Text style={styles.createText}>Create a free account</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -180,8 +171,8 @@ export default function ProfileScreen({ navigation }: any) {
             <MenuDivider />
             <MenuItem
               icon="moon-outline"
-              label="Appearance"
-              sublabel="Dark or light mode"
+              label="Theme/Language"
+              sublabel="Dark, light, and language"
               onPress={() => navigation.navigate('AppearanceSettings')}
             />
             <MenuDivider />
@@ -195,12 +186,22 @@ export default function ProfileScreen({ navigation }: any) {
         </View>
 
         {!isGuest && (
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} accessibilityRole="button">
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={() => setSignOutOpen(true)}
+            accessibilityRole="button"
+          >
             <Ionicons name="log-out-outline" size={19} color={colors.danger} />
             <Text style={styles.logoutText}>Sign Out</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      <SignOutModal
+        visible={signOutOpen}
+        onCancel={() => setSignOutOpen(false)}
+        onConfirm={confirmLogout}
+      />
     </SafeAreaView>
   );
 }
@@ -305,9 +306,9 @@ function makeProfileStyles(colors: ColorPalette) {
     gap: 10,
   },
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',

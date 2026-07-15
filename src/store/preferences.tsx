@@ -4,9 +4,12 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
+  startTransition,
   ReactNode,
 } from 'react';
+import { InteractionManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = 'etete_prefs_v2';
@@ -49,59 +52,103 @@ type PrefsContextValue = {
 
 const PrefsContext = createContext<PrefsContextValue | null>(null);
 
+function normalizePrefs(raw: Partial<AppPreferences> | null | undefined): AppPreferences {
+  const parsed = raw ?? {};
+  return {
+    ...DEFAULT_PREFS,
+    ...parsed,
+    themeMode: parsed.themeMode === 'dark' ? 'dark' : 'light',
+    language:
+      parsed.language === 'am' ? 'am' : parsed.language === 'om' ? 'om' : 'en',
+  };
+}
+
 export function PrefsProvider({ children }: { children: ReactNode }) {
   const [prefs, setPrefs] = useState<AppPreferences>(DEFAULT_PREFS);
   const [ready, setReady] = useState(false);
+  const prefsRef = useRef(prefs);
+  const dirtyRef = useRef(false);
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    prefsRef.current = prefs;
+  }, [prefs]);
+
+  useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
+        if (cancelled) return;
         if (raw) {
-          const parsed = JSON.parse(raw);
-          setPrefs({
-            ...DEFAULT_PREFS,
-            ...parsed,
-            themeMode: parsed.themeMode === 'dark' ? 'dark' : 'light',
-            language:
-              parsed.language === 'am'
-                ? 'am'
-                : parsed.language === 'om'
-                  ? 'om'
-                  : 'en',
-          });
+          setPrefs(normalizePrefs(JSON.parse(raw)));
         }
       } catch {
         // keep defaults
       } finally {
-        setReady(true);
+        if (!cancelled) setReady(true);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const persist = useCallback(async (next: AppPreferences) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // ignore write errors
-    }
+  const flushPersist = useCallback((next: AppPreferences) => {
+    InteractionManager.runAfterInteractions(() => {
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => {});
+    });
+  }, []);
+
+  const schedulePersist = useCallback(
+    (next: AppPreferences) => {
+      dirtyRef.current = true;
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+      persistTimer.current = setTimeout(() => {
+        if (!dirtyRef.current) return;
+        dirtyRef.current = false;
+        flushPersist(next);
+      }, 180);
+    },
+    [flushPersist]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+      if (dirtyRef.current) {
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(prefsRef.current)).catch(
+          () => {}
+        );
+      }
+    };
   }, []);
 
   const setPref = useCallback(
     (key: keyof AppPreferences, value: PrefValue) => {
-      setPrefs((prev) => {
-        const next = { ...prev, [key]: value } as AppPreferences;
-        persist(next);
-        return next;
-      });
+      const apply = () => {
+        setPrefs((prev) => {
+          if (prev[key] === value) return prev;
+          const next = { ...prev, [key]: value } as AppPreferences;
+          schedulePersist(next);
+          return next;
+        });
+      };
+
+      // Theme swaps can re-style the tree — keep taps snappy
+      if (key === 'themeMode') {
+        startTransition(apply);
+      } else {
+        apply();
+      }
     },
-    [persist]
+    [schedulePersist]
   );
 
   const resetPrefs = useCallback(() => {
     setPrefs(DEFAULT_PREFS);
-    persist(DEFAULT_PREFS);
-  }, [persist]);
+    schedulePersist(DEFAULT_PREFS);
+  }, [schedulePersist]);
 
   const value = useMemo(
     () => ({ prefs, setPref, resetPrefs, ready }),

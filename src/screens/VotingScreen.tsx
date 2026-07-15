@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useIsFocused } from '@react-navigation/native';
 import { useApp } from '../store/AppContext';
 import { useAuthGate } from '../components/AuthGate';
 import { useColors, useTheme, typography, fontWeight, radius, ColorPalette } from '../store/theme';
@@ -25,6 +26,7 @@ import { formatCount, getCategoryTheme } from '../components/utils';
 import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 import { hapticLight, hapticSelect, hapticSuccess } from '../utils/haptics';
 import EndDateCalendar from '../components/EndDateCalendar';
+import SideDrawer, { DrawerAvatarButton } from '../components/SideDrawer';
 import { CATEGORIES, Poll } from '../types';
 import type { Category } from '../types';
 
@@ -132,7 +134,7 @@ function LivePulseDot({ size = 8, active = true }: { size?: number; active?: boo
   );
 }
 
-export default function VotingScreen() {
+export default function VotingScreen({ navigation }: any) {
   const styles = useThemedStyles(makeVotingStyles);
   const colors = useColors();
   const { mode } = useTheme();
@@ -140,6 +142,7 @@ export default function VotingScreen() {
   const { requireAuth } = useAuthGate();
   const { onScroll, hideTabBar, showTabBar } = useTabBarScroll();
   const [askOpen, setAskOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(['', '', '']);
@@ -150,11 +153,13 @@ export default function VotingScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [tab, setTab] = useState<'live' | 'results'>('live');
+  const isFocused = useIsFocused();
 
   React.useEffect(() => {
+    if (!isFocused) return;
     const id = setInterval(() => setTick(Date.now()), 30_000);
     return () => clearInterval(id);
-  }, []);
+  }, [isFocused]);
 
   const filteredPolls = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -211,6 +216,22 @@ export default function VotingScreen() {
     }
   }, [askOpen, hideTabBar, showTabBar]);
 
+  const isGuest = !state.isLoggedIn;
+  const displayName = isGuest ? 'Guest' : state.username || 'User';
+  const initial = displayName.charAt(0).toUpperCase();
+
+  const openDrawer = () => {
+    hapticLight();
+    hideTabBar();
+    setDrawerOpen(true);
+  };
+
+  const closeDrawer = () => {
+    hapticLight();
+    setDrawerOpen(false);
+    showTabBar();
+  };
+
   const updateOption = (index: number, value: string) => {
     setOptions((prev) => prev.map((o, i) => (i === index ? value : o)));
   };
@@ -250,7 +271,7 @@ export default function VotingScreen() {
         question: q,
         category: pollCategory,
         options: pollOptions,
-        authorId: 'Anon',
+        authorId: state.username || 'Anon',
         timestamp: Date.now(),
         startAt,
         endAt,
@@ -495,7 +516,11 @@ export default function VotingScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Voting</Text>
+        <DrawerAvatarButton
+          onPress={openDrawer}
+          initial={initial}
+          isGuest={isGuest}
+        />
         <View style={styles.searchWrap}>
           <Ionicons name="search" size={13} color={colors.textMeta} />
           <TextInput
@@ -603,6 +628,10 @@ export default function VotingScreen() {
         onScroll={onScroll}
         scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled"
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={7}
+        removeClippedSubviews
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -634,6 +663,12 @@ export default function VotingScreen() {
             </Text>
           </View>
         }
+      />
+
+      <SideDrawer
+        visible={drawerOpen}
+        onClose={closeDrawer}
+        navigation={navigation}
       />
 
       <Modal
@@ -714,12 +749,6 @@ function makeVotingStyles(colors: ColorPalette) {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
       gap: 8,
-    },
-    title: {
-      color: colors.textPrimary,
-      fontWeight: fontWeight.extrabold,
-      fontSize: typography.lg,
-      letterSpacing: -0.3,
     },
     askBtn: {
       flexDirection: 'row',

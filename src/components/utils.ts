@@ -1,4 +1,5 @@
 import { getCategoryPalette, categoryThemeLight } from '../store/theme';
+import type { Confession, Poll } from '../types';
 
 export function formatCount(n: number): string {
   if (n <= 0) return '0';
@@ -9,6 +10,40 @@ export function formatCount(n: number): string {
   }
   const m = n / 1_000_000;
   return m % 1 === 0 ? `${m}m` : `${m.toFixed(1)}m`;
+}
+
+/** Sidebar stats: vote wins (+10 each) and up/down totals on own posts */
+export function getUserSidebarStats(
+  confessions: Confession[],
+  polls: Poll[],
+  pollVotes: Record<string, string>,
+  username: string,
+  isGuest: boolean
+) {
+  if (isGuest || !username) {
+    return { voteScore: 0, upvotes: 0, downvotes: 0, wins: 0 };
+  }
+
+  const mine = confessions.filter((c) => c.authorId === username);
+  const upvotes = mine.reduce((s, c) => s + c.upvotes, 0);
+  const downvotes = mine.reduce((s, c) => s + c.downvotes, 0);
+
+  let wins = 0;
+  for (const poll of polls) {
+    const votedId = pollVotes[poll.id];
+    if (!votedId) continue;
+    const maxVotes = Math.max(0, ...poll.options.map((o) => o.votes));
+    if (maxVotes <= 0) continue;
+    const mineOpt = poll.options.find((o) => o.id === votedId);
+    if (mineOpt && mineOpt.votes === maxVotes) wins += 1;
+  }
+
+  return {
+    wins,
+    voteScore: wins * 10,
+    upvotes,
+    downvotes,
+  };
 }
 
 export function timeAgo(ts: number): string {

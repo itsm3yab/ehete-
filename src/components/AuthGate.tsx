@@ -17,7 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../store/AppContext';
 import { useColors, useTheme, typography, fontWeight, radius, ColorPalette } from '../store/theme';
-import { navigate } from '../navigation/navigationRef';
+import { goToSignIn } from '../navigation/navigationRef';
 
 type AuthGateContextValue = {
   requireAuth: (reason?: string) => boolean;
@@ -67,12 +67,7 @@ export function AuthGateProvider({ children }: { children: React.ReactNode }) {
 
   const goLogin = () => {
     setVisible(false);
-    navigate('Auth', { screen: 'Login' });
-  };
-
-  const goSignup = () => {
-    setVisible(false);
-    navigate('Auth', { screen: 'Signup' });
+    goToSignIn();
   };
 
   const value = useMemo(() => ({ requireAuth }), [requireAuth]);
@@ -103,15 +98,6 @@ export function AuthGateProvider({ children }: { children: React.ReactNode }) {
               accessibilityLabel="Sign In"
             >
               <Text style={styles.primaryText}>Sign In</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.outlineBtn}
-              onPress={goSignup}
-              accessibilityRole="button"
-              accessibilityLabel="Create Account"
-            >
-              <Text style={styles.outlineText}>Create Account</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={close} hitSlop={10}>

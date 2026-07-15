@@ -164,7 +164,7 @@ export default function DetailScreen({ route, navigation }: any) {
           </View>
           <View style={styles.statDot} />
           <View style={styles.statItem}>
-            <Ionicons name="bar-chart-outline" size={13} color={colors.textMeta} />
+            <Ionicons name="eye-outline" size={13} color={colors.textMeta} />
             <Text style={styles.statText}>{formatCount(views)} views</Text>
           </View>
         </View>
