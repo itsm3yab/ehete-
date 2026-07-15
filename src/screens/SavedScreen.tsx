@@ -4,9 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../store/AppContext';
 import ConfessionCard from '../components/ConfessionCard';
-import { colors, typography, fontWeight } from '../store/theme';
+import { typography, fontWeight, useColors, ColorPalette } from '../store/theme';
+import { useThemedStyles } from '../store/useThemedStyles';
 
 export default function SavedScreen({ navigation }: any) {
+  const styles = useThemedStyles(makeSavedStyles);
+  const colors = useColors();
   const { state } = useApp();
   const saved = state.confessions.filter((c) => state.savedIds.has(c.id));
 
@@ -35,7 +38,7 @@ export default function SavedScreen({ navigation }: any) {
           </View>
           <Text style={styles.emptyTitle}>Nothing saved yet</Text>
           <Text style={styles.emptySub}>
-            Tap the bookmark icon on any confession to save it here.
+            Tap the bookmark on any confession you want to keep.
           </Text>
         </View>
       ) : (
@@ -56,7 +59,10 @@ export default function SavedScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+
+
+function makeSavedStyles(colors: ColorPalette) {
+  return {
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row',
@@ -97,4 +103,5 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { color: colors.textPrimary, fontWeight: fontWeight.bold, fontSize: typography.lg },
   emptySub: { color: colors.textSecondary, fontSize: typography.sm, textAlign: 'center', lineHeight: 22 },
-});
+};
+}

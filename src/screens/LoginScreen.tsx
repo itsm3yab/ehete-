@@ -1,219 +1,186 @@
-import React, { useRef, useState } from 'react';
+import React from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { CommonActions } from '@react-navigation/native';
 import { useApp } from '../store/AppContext';
-import { colors, typography, fontWeight, radius } from '../store/theme';
+import { typography, fontWeight, radius, useColors, ColorPalette } from '../store/theme';
+import { useThemedStyles } from '../store/useThemedStyles';
 
 export default function LoginScreen({ navigation }: any) {
+  const styles = useThemedStyles(makeLoginStyles);
+  const colors = useColors();
   const { dispatch } = useApp();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPass, setShowPass] = useState(false);
-  const [focused, setFocused] = useState<string | null>(null);
-  const passwordRef = useRef<TextInput>(null);
 
-  const handleLogin = () => {
-    if (!username.trim()) {
-      Alert.alert('Missing username', 'Please enter your username.');
-      return;
-    }
-    if (!password.trim()) {
-      Alert.alert('Missing password', 'Please enter your password.');
-      return;
-    }
-    dispatch({ type: 'LOGIN', payload: username.trim() });
-    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+  const goMain = () => {
+    navigation.dispatch(
+      CommonActions.reset({ index: 0, routes: [{ name: 'Main' }] })
+    );
+  };
+
+  const handleGoogle = () => {
+    dispatch({ type: 'LOGIN', payload: 'User' });
+    goMain();
+  };
+
+  const handleGuest = () => {
+    goMain();
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <SafeAreaView style={styles.container}>
+      <TouchableOpacity
+        style={styles.back}
+        onPress={() => {
+          if (navigation.canGoBack()) navigation.goBack();
+          else goMain();
+        }}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+        <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+      </TouchableOpacity>
+
+      <View style={styles.body}>
+        <View style={styles.iconWrap}>
+          <Ionicons name="chatbubbles" size={40} color={colors.accent} />
+        </View>
+        <Text style={styles.heading}>Welcome, Brother</Text>
+        <Text style={styles.sub}>
+          Sign in to share your story, connect with other men, and speak freely.
+        </Text>
+
+        <Pressable
+          style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.85 }]}
+          onPress={handleGoogle}
         >
-          {/* Back */}
-          <TouchableOpacity
-            style={styles.back}
-            onPress={() => navigation.goBack()}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
+          <Ionicons name="logo-google" size={20} color={colors.textPrimary} />
+          <Text style={styles.googleBtnText}>Sign in with Google</Text>
+        </Pressable>
 
-          <Text style={styles.heading}>Welcome back</Text>
-          <Text style={styles.sub}>Sign in to your account</Text>
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>or</Text>
+          <View style={styles.dividerLine} />
+        </View>
 
-          <View style={styles.form}>
-            {/* Username */}
-            <View style={[styles.inputWrap, focused === 'user' && styles.inputFocused]}>
-              <Ionicons name="person-outline" size={18} color={colors.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Username"
-                placeholderTextColor={colors.textMeta}
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="next"
-                onSubmitEditing={() => passwordRef.current?.focus()}
-                onFocus={() => setFocused('user')}
-                onBlur={() => setFocused(null)}
-                accessibilityLabel="Username"
-              />
-            </View>
+        <TouchableOpacity style={styles.guestBtn} onPress={handleGuest}>
+          <Ionicons name="person-outline" size={18} color={colors.textSecondary} />
+          <Text style={styles.guestText}>Continue as Guest</Text>
+        </TouchableOpacity>
+      </View>
 
-            {/* Password */}
-            <View style={[styles.inputWrap, focused === 'pass' && styles.inputFocused]}>
-              <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                ref={passwordRef}
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor={colors.textMeta}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPass}
-                returnKeyType="done"
-                onSubmitEditing={handleLogin}
-                onFocus={() => setFocused('pass')}
-                onBlur={() => setFocused(null)}
-                accessibilityLabel="Password"
-              />
-              <TouchableOpacity
-                onPress={() => setShowPass((v) => !v)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityLabel={showPass ? 'Hide password' : 'Show password'}
-              >
-                <Ionicons
-                  name={showPass ? 'eye-off-outline' : 'eye-outline'}
-                  size={18}
-                  color={colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
-
-            <Pressable
-              style={({ pressed }) => [styles.submitBtn, pressed && { opacity: 0.85 }]}
-              onPress={handleLogin}
-              accessibilityRole="button"
-              accessibilityLabel="Sign In"
-            >
-              <Text style={styles.submitText}>Sign In</Text>
-            </Pressable>
-          </View>
-
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <TouchableOpacity
-            style={styles.guestBtn}
-            onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] })}
-            accessibilityRole="button"
-          >
-            <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
-            <Text style={styles.guestText}>Continue as Guest</Text>
-          </TouchableOpacity>
-
-          <View style={styles.switchRow}>
-            <Text style={styles.switchText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-              <Text style={styles.switchLink}>Sign Up</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      <Text style={styles.disclaimer}>
+        By continuing, you agree to our Terms of Service and Privacy Policy.
+      </Text>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.bg },
-  container: { flex: 1 },
-  scroll: { padding: 24, paddingTop: 16 },
-  back: { marginBottom: 32, alignSelf: 'flex-start' },
+
+
+function makeLoginStyles(colors: ColorPalette) {
+  return {
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    paddingHorizontal: 28,
+    paddingBottom: 16,
+  },
+  back: {
+    alignSelf: 'flex-start',
+    paddingVertical: 12,
+  },
+  body: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 60,
+  },
+  iconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: radius.lg,
+    backgroundColor: colors.accentDim,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 28,
+  },
   heading: {
     fontSize: typography.xxl,
     fontWeight: fontWeight.extrabold,
     color: colors.textPrimary,
-    marginBottom: 6,
+    textAlign: 'center',
+    marginBottom: 10,
   },
-  sub: { color: colors.textSecondary, fontSize: typography.base, marginBottom: 32 },
-  form: { gap: 12 },
-  inputWrap: {
+  sub: {
+    fontSize: typography.base,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 36,
+    paddingHorizontal: 12,
+  },
+  googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.bgInput,
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: radius.full,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    gap: 10,
+    backgroundColor: colors.bgElevated,
+    width: '100%',
   },
-  inputFocused: { borderColor: colors.accent },
-  inputIcon: { flexShrink: 0 },
-  input: {
-    flex: 1,
+  googleBtnText: {
     color: colors.textPrimary,
+    fontWeight: fontWeight.semibold,
     fontSize: typography.base,
-    padding: 0,
-  },
-  submitBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.full,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  submitText: {
-    color: '#fff',
-    fontWeight: fontWeight.bold,
-    fontSize: typography.base,
-    letterSpacing: 0.2,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     marginVertical: 24,
+    width: '100%',
   },
-  dividerLine: { flex: 1, height: 0.5, backgroundColor: colors.border },
-  dividerText: { color: colors.textSecondary, fontSize: typography.sm },
+  dividerLine: {
+    flex: 1,
+    height: 0.5,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    color: colors.textSecondary,
+    fontSize: typography.sm,
+  },
   guestBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 13,
+    paddingVertical: 14,
+    borderRadius: radius.full,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.full,
-    marginBottom: 24,
+    width: '100%',
   },
-  guestText: { color: colors.textSecondary, fontSize: typography.sm, fontWeight: fontWeight.medium },
-  switchRow: { flexDirection: 'row', justifyContent: 'center' },
-  switchText: { color: colors.textSecondary, fontSize: typography.sm },
-  switchLink: { color: colors.accent, fontWeight: fontWeight.semibold, fontSize: typography.sm },
-});
+  guestText: {
+    color: colors.textSecondary,
+    fontSize: typography.sm,
+    fontWeight: fontWeight.medium,
+  },
+  disclaimer: {
+    color: colors.textMeta,
+    fontSize: typography.xs,
+    textAlign: 'center',
+    paddingBottom: 4,
+  },
+};
+}

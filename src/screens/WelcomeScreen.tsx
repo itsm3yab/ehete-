@@ -1,176 +1,322 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
-  Animated,
+  Dimensions,
+  FlatList,
+  Image,
+  Platform,
   Pressable,
-  StyleSheet,
+  StatusBar as RNStatusBar,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar, setStatusBarStyle, setStatusBarHidden } from 'expo-status-bar';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography, fontWeight, radius } from '../store/theme';
+import { typography, fontWeight, radius, useColors, useTheme, ColorPalette } from '../store/theme';
+import { useThemedStyles } from '../store/useThemedStyles';
+
+const { width } = Dimensions.get('window');
+const SWIPE_THRESHOLD = width * 0.3;
+
+const slides = [
+  {
+    id: '1',
+    icon: 'chatbubbles',
+    title: 'Speak Your Mind',
+    desc: 'Share what\'s weighing on you without holding back. No names, no judgment — just real talk between men.',
+  },
+  {
+    id: '2',
+    icon: 'shield-checkmark',
+    title: 'Your Truth Stays Here',
+    desc: 'Everything you post is 100% anonymous. No names, no traces — your secret stays with us.',
+  },
+  {
+    id: '3',
+    icon: 'people',
+    title: 'Brothers in It Together',
+    desc: 'Connect with other men who\'ve walked the same path. Read, relate, and find strength in shared stories.',
+  },
+];
 
 export default function WelcomeScreen({ navigation }: any) {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const styles = useThemedStyles(makeWelcomeStyles);
+  const colors = useColors();
+  const { isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+  const flatRef = useRef<FlatList>(null);
+  const [index, setIndex] = useState(0);
+  const touchStart = useRef(0);
+
+  const isLast = index === slides.length - 1;
+  const statusStyle = isDark ? 'light' : 'dark';
+  const topInset = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? RNStatusBar.currentHeight ?? 28 : 0
+  );
+
+  const applyStatusBar = useCallback(() => {
+    setStatusBarHidden(false, 'none');
+    setStatusBarStyle(statusStyle);
+    if (Platform.OS === 'android') {
+      try {
+        RNStatusBar.setHidden(false);
+        RNStatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content', true);
+      } catch {
+        // ignore API gaps on edge-to-edge devices
+      }
+    }
+  }, [isDark, statusStyle]);
+
+  useFocusEffect(
+    useCallback(() => {
+      applyStatusBar();
+      const t = setTimeout(applyStatusBar, 50);
+      return () => clearTimeout(t);
+    }, [applyStatusBar])
+  );
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
-    ]).start();
+    applyStatusBar();
+  }, [applyStatusBar]);
+
+  const handleNext = useCallback(() => {
+    if (isLast) return;
+    flatRef.current?.scrollToIndex({ index: index + 1, animated: true });
+  }, [index, isLast]);
+
+  const handleGuest = useCallback(() => {
+    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+  }, [navigation]);
+
+  const goToSlide = useCallback((i: number) => {
+    flatRef.current?.scrollToIndex({ index: i, animated: true });
   }, []);
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Hero */}
-      <Animated.View style={[styles.hero, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        <View style={styles.logoRow}>
-          <View style={styles.logoIcon}>
-            <Ionicons name="chatbubbles" size={26} color={colors.accent} />
-          </View>
-          <Text style={styles.logo}>etete</Text>
+  const onMomentumEnd = useCallback((e: any) => {
+    const newIndex = Math.round(e.nativeEvent.contentOffset.x / width);
+    setIndex(newIndex);
+  }, []);
+
+  const onTouchStart = useCallback((e: any) => {
+    touchStart.current = e.nativeEvent.pageX;
+  }, []);
+
+  const onTouchEnd = useCallback(
+    (e: any) => {
+      const diff = touchStart.current - e.nativeEvent.pageX;
+      if (diff > SWIPE_THRESHOLD && !isLast) handleNext();
+    },
+    [isLast, handleNext],
+  );
+
+  const renderSlide = useCallback(({ item }: any) => {
+    return (
+      <View style={styles.slide}>
+        <View style={styles.iconWrap}>
+          <Ionicons name={item.icon} size={48} color={colors.accent} />
         </View>
-        <Text style={styles.tagline}>
-          A safe space to share what you've been holding inside.
-        </Text>
-        <View style={styles.pills}>
-          {['Anonymous', 'Non-judgmental', 'Honest'].map((label) => (
-            <View key={label} style={styles.pill}>
-              <Text style={styles.pillText}>{label}</Text>
-            </View>
+        <Text style={styles.slideTitle}>{item.title}</Text>
+        <Text style={styles.slideDesc}>{item.desc}</Text>
+      </View>
+    );
+  }, []);
+
+  const keyExtractor = useCallback((item: any) => item.id, []);
+
+  return (
+    <View style={[styles.container, { paddingTop: topInset }]}>
+      <StatusBar style={statusStyle} hidden={false} />
+      <View style={styles.topSection}>
+        <Image
+          source={require('../../assets/icon.png')}
+          style={styles.brandIcon}
+          accessibilityLabel="etete"
+        />
+      </View>
+
+      <FlatList
+        ref={flatRef}
+        data={slides}
+        renderItem={renderSlide}
+        keyExtractor={keyExtractor}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        bounces={false}
+        onMomentumScrollEnd={onMomentumEnd}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        scrollEnabled={!isLast}
+      />
+
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: colors.bg }}>
+      <View style={styles.bottomSection}>
+        <View style={styles.dots}>
+          {slides.map((_, i) => (
+            <TouchableOpacity
+              key={i}
+              onPress={() => goToSlide(i)}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            >
+              <View style={[styles.dot, i === index && styles.dotActive]} />
+            </TouchableOpacity>
           ))}
         </View>
-      </Animated.View>
 
-      {/* Actions */}
-      <Animated.View style={[styles.actions, { opacity: fadeAnim }]}>
-        <Pressable
-          style={({ pressed }) => [styles.btn, styles.btnPrimary, pressed && { opacity: 0.85 }]}
-          onPress={() => navigation.navigate('Login')}
-          accessibilityRole="button"
-          accessibilityLabel="Sign In"
-        >
-          <Text style={styles.btnPrimaryText}>Sign In</Text>
-        </Pressable>
+        {!isLast ? (
+          <Pressable
+            style={({ pressed }) => [styles.nextBtn, pressed && { opacity: 0.85 }]}
+            onPress={handleNext}
+          >
+            <Text style={styles.nextBtnText}>Next</Text>
+            <Ionicons name="arrow-forward" size={18} color="#fff" />
+          </Pressable>
+        ) : (
+          <View style={styles.actions}>
+            <Pressable
+              style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.85 }]}
+              onPress={() => navigation.navigate('Login')}
+            >
+              <Ionicons name="logo-google" size={20} color={colors.textPrimary} />
+              <Text style={styles.googleBtnText}>Continue with Google</Text>
+            </Pressable>
 
-        <Pressable
-          style={({ pressed }) => [styles.btn, styles.btnOutline, pressed && { opacity: 0.75 }]}
-          onPress={() => navigation.navigate('Signup')}
-          accessibilityRole="button"
-          accessibilityLabel="Create Account"
-        >
-          <Text style={styles.btnOutlineText}>Create Account</Text>
-        </Pressable>
-
-        <TouchableOpacity
-          onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] })}
-          accessibilityRole="button"
-          accessibilityLabel="Browse as guest"
-        >
-          <Text style={styles.guestText}>Browse as Guest</Text>
-        </TouchableOpacity>
-      </Animated.View>
+            <TouchableOpacity onPress={handleGuest} style={styles.guestBtn}>
+              <Text style={styles.guestText}>Continue as Guest</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
 
       <Text style={styles.disclaimer}>
         By continuing, you agree to our Terms of Service and Privacy Policy.
       </Text>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
+
+
+function makeWelcomeStyles(colors: ColorPalette) {
+  return {
   container: {
     flex: 1,
     backgroundColor: colors.bg,
-    paddingHorizontal: 28,
-    justifyContent: 'space-between',
     paddingBottom: 16,
   },
-  hero: {
-    flex: 1,
+  topSection: {
+    paddingHorizontal: 28,
+    paddingTop: 8,
+  },
+  brandIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+  },
+  slide: {
+    width,
+    paddingHorizontal: 40,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
-    paddingTop: 40,
+    paddingTop: 20,
   },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 4,
-  },
-  logoIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+  iconWrap: {
+    width: 96,
+    height: 96,
+    borderRadius: radius.xl,
     backgroundColor: colors.accentDim,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 32,
   },
-  logo: {
-    fontSize: typography.hero - 10,
+  slideTitle: {
+    fontSize: typography.xxl,
     fontWeight: fontWeight.extrabold,
     color: colors.textPrimary,
-    letterSpacing: -1.5,
+    textAlign: 'center',
+    marginBottom: 14,
   },
-  tagline: {
-    color: colors.textSecondary,
+  slideDesc: {
     fontSize: typography.md,
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 26,
     paddingHorizontal: 8,
   },
-  pills: {
+  bottomSection: {
+    paddingHorizontal: 28,
+    gap: 28,
+    paddingTop: 12,
+  },
+  dots: {
     flexDirection: 'row',
+    justifyContent: 'center',
     gap: 8,
-    marginTop: 4,
   },
-  pill: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.full,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.border,
   },
-  pillText: {
-    color: colors.textSecondary,
-    fontSize: typography.xs,
-    fontWeight: fontWeight.medium,
+  dotActive: {
+    width: 24,
+    backgroundColor: colors.accent,
+    borderRadius: 4,
   },
-  actions: {
-    gap: 12,
-    paddingBottom: 8,
-  },
-  btn: {
-    paddingVertical: 15,
-    borderRadius: radius.full,
+  nextBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.accent,
+    paddingVertical: 16,
+    borderRadius: radius.full,
   },
-  btnPrimary: { backgroundColor: colors.accent },
-  btnPrimaryText: {
+  nextBtnText: {
     color: '#fff',
     fontWeight: fontWeight.bold,
     fontSize: typography.base,
     letterSpacing: 0.2,
   },
-  btnOutline: { borderWidth: 1.5, borderColor: colors.border },
-  btnOutlineText: {
+  actions: {
+    gap: 12,
+  },
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 15,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgElevated,
+  },
+  googleBtnText: {
     color: colors.textPrimary,
     fontWeight: fontWeight.semibold,
     fontSize: typography.base,
   },
+  guestBtn: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
   guestText: {
     color: colors.textSecondary,
-    textAlign: 'center',
     fontSize: typography.sm,
-    paddingVertical: 6,
+    fontWeight: fontWeight.medium,
   },
   disclaimer: {
     color: colors.textMeta,
     fontSize: typography.xs,
     textAlign: 'center',
-    paddingBottom: 4,
+    paddingTop: 20,
+    paddingHorizontal: 28,
   },
-});
+};
+}

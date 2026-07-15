@@ -1,255 +1,133 @@
-import React, { useRef, useState } from 'react';
+import React from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../store/AppContext';
-import { colors, typography, fontWeight, radius } from '../store/theme';
+import { typography, fontWeight, radius, useColors, ColorPalette } from '../store/theme';
+import { useThemedStyles } from '../store/useThemedStyles';
 
 export default function SignupScreen({ navigation }: any) {
+  const styles = useThemedStyles(makeSignupStyles);
+  const colors = useColors();
   const { dispatch } = useApp();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [showPass, setShowPass] = useState(false);
-  const [focused, setFocused] = useState<string | null>(null);
-  const passRef = useRef<TextInput>(null);
-  const confirmRef = useRef<TextInput>(null);
 
-  const passwordStrength = password.length === 0 ? 0
-    : password.length < 6 ? 1
-    : password.length < 10 ? 2
-    : 3;
-  const strengthLabel = ['', 'Weak', 'Good', 'Strong'][passwordStrength];
-  const strengthColor = ['', colors.danger, colors.warning, colors.success][passwordStrength];
-
-  const handleSignup = () => {
-    if (!username.trim()) {
-      Alert.alert('Missing username', 'Please choose a username.');
-      return;
-    }
-    if (password.length < 6) {
-      Alert.alert('Weak password', 'Password must be at least 6 characters.');
-      return;
-    }
-    if (password !== confirm) {
-      Alert.alert('Password mismatch', 'Passwords do not match.');
-      return;
-    }
-    dispatch({ type: 'LOGIN', payload: username.trim() });
+  const handleGoogle = () => {
+    dispatch({ type: 'LOGIN', payload: 'User' });
     navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <SafeAreaView style={styles.container}>
+      <TouchableOpacity
+        style={styles.back}
+        onPress={() => navigation.goBack()}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+        <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+      </TouchableOpacity>
+
+      <View style={styles.body}>
+        <View style={styles.iconWrap}>
+          <Ionicons name="chatbubbles" size={40} color={colors.accent} />
+        </View>
+        <Text style={styles.heading}>Join the Brotherhood</Text>
+        <Text style={styles.sub}>
+          A community of men who keep it real. Sign up in seconds with your Google account.
+        </Text>
+
+        <Pressable
+          style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.85 }]}
+          onPress={handleGoogle}
         >
-          <TouchableOpacity
-            style={styles.back}
-            onPress={() => navigation.goBack()}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
+          <Ionicons name="logo-google" size={20} color={colors.textPrimary} />
+          <Text style={styles.googleBtnText}>Sign up with Google</Text>
+        </Pressable>
+      </View>
 
-          <Text style={styles.heading}>Create Account</Text>
-          <Text style={styles.sub}>Your confessions, your anonymity.</Text>
-
-          <View style={styles.form}>
-            {/* Username */}
-            <View style={[styles.inputWrap, focused === 'user' && styles.inputFocused]}>
-              <Ionicons name="at" size={18} color={colors.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Choose a username"
-                placeholderTextColor={colors.textMeta}
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="next"
-                onSubmitEditing={() => passRef.current?.focus()}
-                onFocus={() => setFocused('user')}
-                onBlur={() => setFocused(null)}
-              />
-            </View>
-
-            {/* Password */}
-            <View>
-              <View style={[styles.inputWrap, focused === 'pass' && styles.inputFocused]}>
-                <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} style={styles.inputIcon} />
-                <TextInput
-                  ref={passRef}
-                  style={styles.input}
-                  placeholder="Password (min 6 chars)"
-                  placeholderTextColor={colors.textMeta}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPass}
-                  returnKeyType="next"
-                  onSubmitEditing={() => confirmRef.current?.focus()}
-                  onFocus={() => setFocused('pass')}
-                  onBlur={() => setFocused(null)}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPass((v) => !v)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons
-                    name={showPass ? 'eye-off-outline' : 'eye-outline'}
-                    size={18}
-                    color={colors.textSecondary}
-                  />
-                </TouchableOpacity>
-              </View>
-              {password.length > 0 && (
-                <View style={styles.strengthRow}>
-                  {[1, 2, 3].map((i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.strengthBar,
-                        { backgroundColor: i <= passwordStrength ? strengthColor : colors.border },
-                      ]}
-                    />
-                  ))}
-                  <Text style={[styles.strengthLabel, { color: strengthColor }]}>{strengthLabel}</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Confirm */}
-            <View style={[styles.inputWrap, focused === 'confirm' && styles.inputFocused,
-              confirm.length > 0 && confirm !== password && styles.inputError,
-            ]}>
-              <Ionicons name="shield-checkmark-outline" size={18} color={colors.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                ref={confirmRef}
-                style={styles.input}
-                placeholder="Confirm password"
-                placeholderTextColor={colors.textMeta}
-                value={confirm}
-                onChangeText={setConfirm}
-                secureTextEntry={!showPass}
-                returnKeyType="done"
-                onSubmitEditing={handleSignup}
-                onFocus={() => setFocused('confirm')}
-                onBlur={() => setFocused(null)}
-              />
-              {confirm.length > 0 && (
-                <Ionicons
-                  name={confirm === password ? 'checkmark-circle' : 'close-circle'}
-                  size={18}
-                  color={confirm === password ? colors.success : colors.danger}
-                />
-              )}
-            </View>
-
-            <Pressable
-              style={({ pressed }) => [styles.submitBtn, pressed && { opacity: 0.85 }]}
-              onPress={handleSignup}
-            >
-              <Text style={styles.submitText}>Create Account</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.switchRow}>
-            <Text style={styles.switchText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.switchLink}>Sign In</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      <View style={styles.switchRow}>
+        <Text style={styles.switchText}>Already have an account? </Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+          <Text style={styles.switchLink}>Sign In</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.bg },
-  container: { flex: 1 },
-  scroll: { padding: 24, paddingTop: 16 },
-  back: { marginBottom: 32, alignSelf: 'flex-start' },
+
+
+function makeSignupStyles(colors: ColorPalette) {
+  return {
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    paddingHorizontal: 28,
+    paddingBottom: 16,
+  },
+  back: {
+    alignSelf: 'flex-start',
+    paddingVertical: 12,
+  },
+  body: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 60,
+  },
+  iconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: radius.lg,
+    backgroundColor: colors.accentDim,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 28,
+  },
   heading: {
     fontSize: typography.xxl,
     fontWeight: fontWeight.extrabold,
     color: colors.textPrimary,
-    marginBottom: 6,
+    textAlign: 'center',
+    marginBottom: 10,
   },
-  sub: { color: colors.textSecondary, fontSize: typography.base, marginBottom: 32 },
-  form: { gap: 12 },
-  inputWrap: {
+  sub: {
+    fontSize: typography.base,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 36,
+    paddingHorizontal: 12,
+  },
+  googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.bgInput,
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: radius.full,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    gap: 10,
+    backgroundColor: colors.bgElevated,
+    width: '100%',
   },
-  inputFocused: { borderColor: colors.accent },
-  inputError: { borderColor: colors.danger },
-  inputIcon: { flexShrink: 0 },
-  input: {
-    flex: 1,
+  googleBtnText: {
     color: colors.textPrimary,
-    fontSize: typography.base,
-    padding: 0,
-  },
-  strengthRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
-    paddingHorizontal: 2,
-  },
-  strengthBar: {
-    flex: 1,
-    height: 3,
-    borderRadius: 2,
-  },
-  strengthLabel: {
-    fontSize: typography.xs,
     fontWeight: fontWeight.semibold,
-    width: 44,
-    textAlign: 'right',
-  },
-  submitBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.full,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  submitText: {
-    color: '#fff',
-    fontWeight: fontWeight.bold,
     fontSize: typography.base,
   },
   switchRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 28,
+    paddingBottom: 20,
   },
   switchText: { color: colors.textSecondary, fontSize: typography.sm },
   switchLink: { color: colors.accent, fontWeight: fontWeight.semibold, fontSize: typography.sm },
-});
+};
+}

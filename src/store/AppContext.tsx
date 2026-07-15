@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
-import { Confession, Reply, SortMode } from '../types';
+import { Confession, Reply, SortMode, Poll } from '../types';
 import { mockConfessions } from '../data/mockConfessions';
 import { mockReplies } from '../data/mockReplies';
+import { mockPolls } from '../data/mockPolls';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -10,6 +11,8 @@ interface AppState {
   username: string;
   confessions: Confession[];
   replies: Reply[];
+  polls: Poll[];
+  pollVotes: Record<string, string>;
   isLoading: boolean;
   sortMode: SortMode;
   selectedCategory: string | null;
@@ -36,7 +39,9 @@ type Action =
   | { type: 'TOGGLE_SAVE'; payload: string }
   | { type: 'ADD_REPLY'; payload: Reply }
   | { type: 'TOGGLE_REPLY_UPVOTE'; payload: string }
-  | { type: 'TOGGLE_REPLY_DOWNVOTE'; payload: string };
+  | { type: 'TOGGLE_REPLY_DOWNVOTE'; payload: string }
+  | { type: 'ADD_POLL'; payload: Poll }
+  | { type: 'VOTE_POLL'; payload: { pollId: string; optionId: string } };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -97,6 +102,10 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         confessions: mockConfessions.map((c) => ({ ...c })),
         replies: mockReplies.map((r) => ({ ...r })),
+        polls: mockPolls.map((p) => ({
+          ...p,
+          options: p.options.map((o) => ({ ...o })),
+        })),
         isLoading: false,
       };
 
@@ -111,6 +120,7 @@ function reducer(state: AppState, action: Action): AppState {
         upvotedIds: new Set(),
         downvotedIds: new Set(),
         savedIds: new Set(),
+        pollVotes: {},
       };
 
     case 'SET_SORT':
@@ -266,6 +276,34 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
 
+    case 'ADD_POLL':
+      return { ...state, polls: [action.payload, ...state.polls] };
+
+    case 'VOTE_POLL': {
+      const { pollId, optionId } = action.payload;
+      const poll = state.polls.find((p) => p.id === pollId);
+      if (!poll) return state;
+      const prev = state.pollVotes[pollId];
+      if (prev === optionId) return state;
+
+      return {
+        ...state,
+        pollVotes: { ...state.pollVotes, [pollId]: optionId },
+        polls: state.polls.map((p) => {
+          if (p.id !== pollId) return p;
+          return {
+            ...p,
+            options: p.options.map((o) => {
+              let votes = o.votes;
+              if (o.id === prev) votes = Math.max(0, votes - 1);
+              if (o.id === optionId) votes += 1;
+              return { ...o, votes };
+            }),
+          };
+        }),
+      };
+    }
+
     default:
       return state;
   }
@@ -274,10 +312,12 @@ function reducer(state: AppState, action: Action): AppState {
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 const initialState: AppState = {
-  isLoggedIn: true,
-  username: 'cool_user123',
+  isLoggedIn: false,
+  username: '',
   confessions: [],
   replies: [],
+  polls: [],
+  pollVotes: {},
   isLoading: true,
   sortMode: 'new',
   selectedCategory: null,

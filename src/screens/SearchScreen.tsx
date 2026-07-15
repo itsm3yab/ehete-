@@ -1,6 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
   FlatList,
+  Keyboard,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -11,13 +13,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../store/AppContext';
 import ConfessionCard from '../components/ConfessionCard';
-import { colors, typography, fontWeight, radius } from '../store/theme';
+import { useColors, useTheme, typography, fontWeight, radius, ColorPalette } from '../store/theme';
+import { useThemedStyles } from '../store/useThemedStyles';
 import { getCategoryTheme } from '../components/utils';
 import { CATEGORIES } from '../types';
+import { useTabBarScroll } from '../navigation/TabBarScrollContext';
+import { hapticSelect } from '../utils/haptics';
 
 export default function SearchScreen({ navigation }: any) {
+  const styles = useThemedStyles(makeSearchStyles);
+  const colors = useColors();
+  const { mode } = useTheme();
   const { state, dispatch } = useApp();
+  const { onScroll } = useTabBarScroll();
   const [query, setQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   const results = useMemo(() => {
@@ -32,6 +42,16 @@ export default function SearchScreen({ navigation }: any) {
       )
       .sort((a, b) => b.timestamp - a.timestamp);
   }, [query, state.confessions]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    hapticSelect();
+    dispatch({ type: 'SET_LOADING', payload: true });
+    setTimeout(() => {
+      dispatch({ type: 'LOAD_DATA' });
+      setRefreshing(false);
+    }, 700);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -68,15 +88,18 @@ export default function SearchScreen({ navigation }: any) {
           <Text style={styles.sectionLabel}>Browse by Category</Text>
           <View style={styles.catGrid}>
             {CATEGORIES.map((cat) => {
-              const t = getCategoryTheme(cat);
+              const t = getCategoryTheme(cat, mode);
               return (
                 <TouchableOpacity
                   key={cat}
                   style={[styles.catCard, { backgroundColor: t.bg, borderColor: t.dot + '40' }]}
                   onPress={() => {
+                    hapticSelect();
+                    Keyboard.dismiss();
                     dispatch({ type: 'SET_CATEGORY', payload: cat });
                     navigation.navigate('Feed');
                   }}
+                  activeOpacity={0.75}
                 >
                   <View style={[styles.catDot, { backgroundColor: t.dot }]} />
                   <Text style={[styles.catText, { color: t.text }]}>{cat}</Text>
@@ -109,7 +132,18 @@ export default function SearchScreen({ navigation }: any) {
             )}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: 16 }}
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={{ paddingBottom: 110 }}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.accent}
+                colors={[colors.accent]}
+              />
+            }
           />
         </>
       )}
@@ -117,7 +151,8 @@ export default function SearchScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+function makeSearchStyles(colors: ColorPalette) {
+  return {
   container: { flex: 1, backgroundColor: colors.bg },
   searchRow: {
     paddingHorizontal: 14,
@@ -179,4 +214,5 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { color: colors.textPrimary, fontWeight: fontWeight.semibold, fontSize: typography.lg },
   emptyText: { color: colors.textSecondary, fontSize: typography.sm, textAlign: 'center', lineHeight: 20 },
-});
+  };
+}

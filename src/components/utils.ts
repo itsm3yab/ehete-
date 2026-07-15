@@ -1,4 +1,4 @@
-import { categoryTheme } from '../store/theme';
+import { getCategoryPalette, categoryThemeLight } from '../store/theme';
 
 export function formatCount(n: number): string {
   if (n <= 0) return '0';
@@ -30,14 +30,15 @@ export function categoryInitial(cat: string): string {
   return cat.charAt(0).toUpperCase();
 }
 
-export function categoryColor(cat: string): string {
-  return categoryTheme[cat]?.dot ?? '#1d9bf0';
+export function categoryColor(cat: string, mode: 'dark' | 'light' = 'light'): string {
+  return getCategoryPalette(mode)[cat]?.dot ?? '#1d9bf0';
 }
 
-export function getCategoryTheme(cat: string) {
-  return categoryTheme[cat] ?? { bg: '#1a2a3a', text: '#60a5fa', dot: '#1d9bf0' };
+export function getCategoryTheme(cat: string, mode: 'dark' | 'light' = 'light') {
+  const palette = getCategoryPalette(mode);
+  return palette[cat] ?? categoryThemeLight.Other;
 }
 
-export function estimatedViews(upvotes: number, downvotes: number, replies: number): number {
-  return (upvotes + downvotes + replies) * 12 + 142;
+export function estimatedViews(upvotes: number, downvotes: number, replyCount: number): number {
+  return Math.max(upvotes + downvotes, 0) * 7 + replyCount * 3 + 12;
 }

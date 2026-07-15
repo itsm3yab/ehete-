@@ -10,9 +10,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography, fontWeight, radius } from '../store/theme';
+import { typography, fontWeight, radius, useColors, ColorPalette } from '../store/theme';
+import { useThemedStyles } from '../store/useThemedStyles';
 
 export default function HelpSupportScreen({ navigation }: any) {
+  const styles = useThemedStyles(makeHelpStyles);
+  const colors = useColors();
   const call988 = () => {
     Alert.alert(
       'Call 988 Lifeline?',
@@ -45,10 +48,10 @@ export default function HelpSupportScreen({ navigation }: any) {
             <Ionicons name="heart" size={22} color={colors.upvote} />
           </View>
           <View style={styles.crisisContent}>
-            <Text style={styles.crisisTitle}>You are not alone</Text>
+            <Text style={styles.crisisTitle}>You're not alone, brother</Text>
             <Text style={styles.crisisText}>
-              If you're in crisis or feeling overwhelmed, trained counselors are available 24/7.
-              Reaching out is a sign of strength.
+              If you're struggling or feeling overwhelmed, trained counselors are available 24/7.
+              Reaching out takes real strength.
             </Text>
           </View>
         </View>
@@ -111,14 +114,14 @@ export default function HelpSupportScreen({ navigation }: any) {
           title="FAQ"
           description="Answers to common questions about using Etete."
           actionLabel="View"
-          onAction={() => Alert.alert('FAQ', 'Coming soon!')}
+          onAction={() => navigation.navigate('Faq')}
         />
 
         {/* Community guidelines */}
         <View style={styles.guidelinesCard}>
           <Ionicons name="shield-checkmark-outline" size={18} color={colors.accent} />
           <Text style={styles.guidelinesText}>
-            Etete is built on kindness and respect. Please be considerate of others' experiences.
+            Etete is a brotherhood built on respect. Look out for one another.
             Harmful content will be removed.
           </Text>
         </View>
@@ -128,6 +131,7 @@ export default function HelpSupportScreen({ navigation }: any) {
 }
 
 function SectionLabel({ title }: { title: string }) {
+  const styles = useThemedStyles(makeHelpStyles);
   return <Text style={styles.sectionLabel}>{title}</Text>;
 }
 
@@ -150,6 +154,8 @@ function ResourceCard({
   actionColor?: string;
   onAction: () => void;
 }) {
+  const styles = useThemedStyles(makeHelpStyles);
+  const colors = useColors();
   return (
     <View style={styles.card}>
       <View style={[styles.cardIcon, { backgroundColor: iconBg }]}>
@@ -176,7 +182,10 @@ function ResourceCard({
   );
 }
 
-const styles = StyleSheet.create({
+
+
+function makeHelpStyles(colors: ColorPalette) {
+  return {
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row',
@@ -289,4 +298,5 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     flex: 1,
   },
-});
+};
+}

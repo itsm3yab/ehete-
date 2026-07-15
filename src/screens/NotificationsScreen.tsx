@@ -1,10 +1,25 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography, fontWeight } from '../store/theme';
+import { useColors, typography, fontWeight, ColorPalette } from '../store/theme';
+import { useThemedStyles } from '../store/useThemedStyles';
+import { usePrefs } from '../store/preferences';
 
 export default function NotificationsScreen() {
+  const styles = useThemedStyles(makeNotifStyles);
+  const colors = useColors();
+  const { prefs } = usePrefs();
+
+  const enabled = useMemo(() => {
+    const list: string[] = [];
+    if (prefs.notifyReplies) list.push('replies');
+    if (prefs.notifyVotes) list.push('votes');
+    if (prefs.notifyMentions) list.push('mentions');
+    if (prefs.notifyAnnouncements) list.push('announcements');
+    return list;
+  }, [prefs]);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -16,14 +31,17 @@ export default function NotificationsScreen() {
         </View>
         <Text style={styles.emptyTitle}>All caught up</Text>
         <Text style={styles.emptyText}>
-          When someone replies to your confessions, you'll see it here.
+          {enabled.length === 0
+            ? 'All notification types are off. Turn some on in the side menu → Notifications.'
+            : `Watching for ${enabled.join(', ')}. You'll see them here when something happens.`}
         </Text>
       </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+function makeNotifStyles(colors: ColorPalette) {
+  return {
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 16,
@@ -63,4 +81,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-});
+  };
+}

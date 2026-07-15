@@ -8,6 +8,9 @@ export interface Confession {
   replyCount: number;
   timestamp: number;
   authorId: string;
+  imageUri?: string | null;
+  linkUrl?: string | null;
+  hasVoiceNote?: boolean;
 }
 
 export interface Reply {
@@ -23,6 +26,24 @@ export interface Reply {
 }
 
 export type SortMode = 'new' | 'top' | 'oldest';
+
+export interface PollOption {
+  id: string;
+  text: string;
+  votes: number;
+}
+
+export interface Poll {
+  id: string;
+  question: string;
+  options: PollOption[];
+  authorId: string;
+  timestamp: number;
+  /** When voting opens */
+  startAt: number;
+  /** When voting closes */
+  endAt: number;
+}
 
 export const CATEGORIES = [
   'Love',

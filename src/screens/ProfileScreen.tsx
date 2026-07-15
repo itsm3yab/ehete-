@@ -11,44 +11,28 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CommonActions } from '@react-navigation/native';
 import { useApp } from '../store/AppContext';
-import { colors, typography, fontWeight, radius } from '../store/theme';
+import { useColors, typography, fontWeight, radius, ColorPalette } from '../store/theme';
+import { useThemedStyles } from '../store/useThemedStyles';
 import { formatCount } from '../components/utils';
+import { useTabBarScroll } from '../navigation/TabBarScrollContext';
+import { useAuthGate } from '../components/AuthGate';
 
 export default function ProfileScreen({ navigation }: any) {
+  const styles = useThemedStyles(makeProfileStyles);
+  const colors = useColors();
   const { state, dispatch } = useApp();
+  const { onScroll } = useTabBarScroll();
+  const { requireAuth } = useAuthGate();
+  const isGuest = !state.isLoggedIn;
 
-  if (!state.isLoggedIn) {
-    return (
-      <SafeAreaView style={styles.guestSafe} edges={['top']}>
-        <View style={styles.guestContainer}>
-          <View style={styles.guestIconWrap}>
-            <Ionicons name="person-outline" size={40} color={colors.textSecondary} />
-          </View>
-          <Text style={styles.guestTitle}>You're browsing as a guest</Text>
-          <Text style={styles.guestSub}>
-            Sign in to post confessions, track karma, and save your favorites.
-          </Text>
-          <TouchableOpacity
-            style={styles.signInBtn}
-            onPress={() => navigation.navigate('Login')}
-            accessibilityRole="button"
-          >
-            <Text style={styles.signInText}>Sign In</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-            <Text style={styles.createText}>Create a free account</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const { username } = state;
+  const username = isGuest ? 'Guest' : state.username;
   const initial = username.charAt(0).toUpperCase();
-  const myConfessions = state.confessions.filter((c) => c.authorId === username);
+  const myConfessions = isGuest
+    ? []
+    : state.confessions.filter((c) => c.authorId === username);
   const karma = myConfessions.reduce((s, c) => s + c.upvotes - c.downvotes, 0);
   const totalReplies = myConfessions.reduce((s, c) => s + c.replyCount, 0);
-  const savedCount = state.savedIds.size;
+  const savedCount = isGuest ? 0 : state.savedIds.size;
 
   const handleLogout = () => {
     Alert.alert('Sign Out?', 'Are you sure you want to sign out?', [
@@ -64,39 +48,85 @@ export default function ProfileScreen({ navigation }: any) {
     ]);
   };
 
+  const openAuthed = (screen: string, reason: string) => {
+    if (!requireAuth(reason)) return;
+    navigation.navigate(screen);
+  };
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {/* Cover */}
-        <View style={styles.cover}>
-          <View style={styles.coverGradient} />
-        </View>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+      >
+        {isGuest && (
+          <View style={styles.signInBanner}>
+            <View style={styles.signInBannerText}>
+              <Text style={styles.signInBannerTitle}>You're browsing as a guest</Text>
+              <Text style={styles.signInBannerSub}>
+                Sign in to like, reply, save, and post.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.bannerSignInBtn}
+              onPress={() => navigation.navigate('Login')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.bannerSignInText}>Sign In</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Avatar */}
         <View style={styles.avatarRow}>
-          <View style={styles.avatar}>
+          <View style={[styles.avatar, isGuest && styles.avatarGuest]}>
             <Text style={styles.avatarText}>{initial}</Text>
           </View>
+          {isGuest && (
+            <View style={styles.guestPill}>
+              <Text style={styles.guestPillText}>Guest</Text>
+            </View>
+          )}
         </View>
 
         {/* User info */}
         <View style={styles.userInfo}>
           <Text style={styles.username}>{username}</Text>
-          <Text style={styles.handle}>@{username.toLowerCase().replace(/\s/g, '_')}</Text>
-          <Text style={styles.bio}>Anonymous confessor · Member</Text>
+          <Text style={styles.handle}>
+            {isGuest ? '@guest' : `@${username.toLowerCase().replace(/\s/g, '_')}`}
+          </Text>
+          <Text style={styles.bio}>
+            {isGuest ? 'Sign in to unlock your full profile' : 'A brotherhood of honest men'}
+          </Text>
         </View>
+
+        {isGuest && (
+          <View style={styles.guestActions}>
+            <TouchableOpacity
+              style={styles.signInBtn}
+              onPress={() => navigation.navigate('Login')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.signInText}>Sign In</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+              <Text style={styles.createText}>Create a free account</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Stats */}
         <View style={styles.statsCard}>
           {[
-            { label: 'Confessions', value: myConfessions.length, icon: 'document-text-outline' },
-            { label: 'Karma', value: karma, icon: 'trending-up-outline' },
-            { label: 'Replies', value: totalReplies, icon: 'chatbubble-outline' },
-          ].map(({ label, value, icon }, i) => (
+            { label: 'Confessions', value: myConfessions.length },
+            { label: 'Karma', value: karma },
+            { label: 'Replies', value: totalReplies },
+          ].map(({ label, value }, i) => (
             <React.Fragment key={label}>
               {i > 0 && <View style={styles.statsDivider} />}
               <View style={styles.stat}>
-                <Ionicons name={icon as any} size={16} color={colors.textSecondary} />
                 <Text style={styles.statNum}>{formatCount(value)}</Text>
                 <Text style={styles.statLabel}>{label}</Text>
               </View>
@@ -111,15 +141,17 @@ export default function ProfileScreen({ navigation }: any) {
             <MenuItem
               icon="document-text-outline"
               label="My Confessions"
-              sublabel={`${myConfessions.length} posts`}
-              onPress={() => navigation.navigate('MyConfessions')}
+              sublabel={isGuest ? 'Sign in to view' : `${myConfessions.length} posts`}
+              onPress={() =>
+                openAuthed('MyConfessions', 'Sign in to view your confessions.')
+              }
             />
             <MenuDivider />
             <MenuItem
               icon="bookmark-outline"
               label="Saved"
-              sublabel={`${savedCount} saved`}
-              onPress={() => navigation.navigate('Saved')}
+              sublabel={isGuest ? 'Sign in to view' : `${savedCount} saved`}
+              onPress={() => openAuthed('Saved', 'Sign in to view saved posts.')}
             />
           </View>
 
@@ -133,26 +165,41 @@ export default function ProfileScreen({ navigation }: any) {
             />
             <MenuDivider />
             <MenuItem
-              icon="settings-outline"
-              label="Settings"
-              sublabel="Coming soon"
-              onPress={() => Alert.alert('Settings', 'Settings coming soon!')}
+              icon="notifications-outline"
+              label="Notifications"
+              sublabel="Push, replies, mentions"
+              onPress={() => navigation.navigate('NotificationsSettings')}
+            />
+            <MenuDivider />
+            <MenuItem
+              icon="shield-checkmark-outline"
+              label="Privacy & Safety"
+              sublabel="Blocked users, visibility"
+              onPress={() => navigation.navigate('PrivacySettings')}
+            />
+            <MenuDivider />
+            <MenuItem
+              icon="moon-outline"
+              label="Appearance"
+              sublabel="Dark or light mode"
+              onPress={() => navigation.navigate('AppearanceSettings')}
             />
             <MenuDivider />
             <MenuItem
               icon="information-circle-outline"
               label="About Etete"
               sublabel="v1.0.0"
-              onPress={() => Alert.alert('About Etete', 'Built with Expo & React Native.')}
+              onPress={() => navigation.navigate('About')}
             />
           </View>
         </View>
 
-        {/* Logout */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} accessibilityRole="button">
-          <Ionicons name="log-out-outline" size={19} color={colors.danger} />
-          <Text style={styles.logoutText}>Sign Out</Text>
-        </TouchableOpacity>
+        {!isGuest && (
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} accessibilityRole="button">
+            <Ionicons name="log-out-outline" size={19} color={colors.danger} />
+            <Text style={styles.logoutText}>Sign Out</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -171,6 +218,8 @@ function MenuItem({
   iconColor?: string;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(makeProfileStyles);
+  const colors = useColors();
   return (
     <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
       <View style={[styles.menuIconWrap, { backgroundColor: (iconColor ?? colors.textSecondary) + '18' }]}>
@@ -186,54 +235,75 @@ function MenuItem({
 }
 
 function MenuDivider() {
+  const styles = useThemedStyles(makeProfileStyles);
   return <View style={styles.menuDivider} />;
 }
 
-const styles = StyleSheet.create({
+
+
+function makeProfileStyles(colors: ColorPalette) {
+  return {
   safe: { flex: 1, backgroundColor: colors.bg },
-  scroll: { paddingBottom: 48 },
-  // Guest
-  guestSafe: { flex: 1, backgroundColor: colors.bg },
-  guestContainer: {
-    flex: 1,
+  scroll: { paddingBottom: 110 },
+  signInBanner: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-    gap: 14,
-  },
-  guestIconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.bgElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
+    marginHorizontal: 16,
+    marginTop: 12,
     marginBottom: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: colors.accentDim,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.accent + '55',
   },
-  guestTitle: { color: colors.textPrimary, fontWeight: fontWeight.bold, fontSize: typography.xl, textAlign: 'center' },
-  guestSub: { color: colors.textSecondary, fontSize: typography.sm, textAlign: 'center', lineHeight: 22 },
+  signInBannerText: { flex: 1, gap: 2 },
+  signInBannerTitle: {
+    color: colors.textPrimary,
+    fontWeight: fontWeight.bold,
+    fontSize: typography.sm,
+  },
+  signInBannerSub: {
+    color: colors.textSecondary,
+    fontSize: typography.xs,
+    lineHeight: 16,
+  },
+  bannerSignInBtn: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: radius.full,
+  },
+  bannerSignInText: {
+    color: '#fff',
+    fontWeight: fontWeight.bold,
+    fontSize: typography.sm,
+  },
+  guestActions: {
+    paddingHorizontal: 20,
+    marginTop: 14,
+    gap: 12,
+    alignItems: 'center',
+  },
   signInBtn: {
     backgroundColor: colors.accent,
     paddingHorizontal: 44,
-    paddingVertical: 14,
+    paddingVertical: 13,
     borderRadius: radius.full,
-    marginTop: 4,
+    width: '100%',
+    alignItems: 'center',
   },
   signInText: { color: '#fff', fontWeight: fontWeight.bold, fontSize: typography.base },
   createText: { color: colors.accent, fontSize: typography.sm, fontWeight: fontWeight.medium },
-  // Cover
-  cover: {
-    height: 120,
-    backgroundColor: colors.bgElevated,
-    overflow: 'hidden',
+  avatarRow: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
   },
-  coverGradient: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.accentDim,
-    opacity: 0.5,
-  },
-  // Avatar
-  avatarRow: { paddingHorizontal: 20, marginTop: -36 },
   avatar: {
     width: 72,
     height: 72,
@@ -244,13 +314,28 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.bg,
   },
+  avatarGuest: {
+    backgroundColor: colors.bgElevated,
+  },
   avatarText: { color: '#fff', fontWeight: fontWeight.extrabold, fontSize: typography.xxl },
-  // User info
+  guestPill: {
+    marginBottom: 8,
+    backgroundColor: colors.bgElevated,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+  },
+  guestPillText: {
+    color: colors.textSecondary,
+    fontSize: typography.xs,
+    fontWeight: fontWeight.semibold,
+  },
   userInfo: { paddingHorizontal: 20, marginTop: 10, gap: 2 },
   username: { color: colors.textPrimary, fontWeight: fontWeight.extrabold, fontSize: typography.xl },
   handle: { color: colors.textSecondary, fontSize: typography.sm },
   bio: { color: colors.textMeta, fontSize: typography.xs, marginTop: 4 },
-  // Stats
   statsCard: {
     flexDirection: 'row',
     marginHorizontal: 16,
@@ -265,7 +350,6 @@ const styles = StyleSheet.create({
   statNum: { color: colors.textPrimary, fontWeight: fontWeight.bold, fontSize: typography.lg },
   statLabel: { color: colors.textSecondary, fontSize: typography.xs },
   statsDivider: { width: 0.5, backgroundColor: colors.border },
-  // Menu
   menuSection: { marginTop: 24, paddingHorizontal: 16, gap: 8 },
   menuSectionLabel: {
     color: colors.textMeta,
@@ -301,7 +385,6 @@ const styles = StyleSheet.create({
   menuLabel: { color: colors.textPrimary, fontSize: typography.sm, fontWeight: fontWeight.medium },
   menuSublabel: { color: colors.textMeta, fontSize: typography.xs, marginTop: 1 },
   menuDivider: { height: 0.5, backgroundColor: colors.border, marginLeft: 60 },
-  // Logout
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -316,4 +399,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dangerDim,
   },
   logoutText: { color: colors.danger, fontWeight: fontWeight.semibold, fontSize: typography.sm },
-});
+};
+}

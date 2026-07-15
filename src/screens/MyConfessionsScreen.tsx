@@ -4,9 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../store/AppContext';
 import ConfessionCard from '../components/ConfessionCard';
-import { colors, typography, fontWeight } from '../store/theme';
+import { typography, fontWeight, useColors, ColorPalette } from '../store/theme';
+import { useThemedStyles } from '../store/useThemedStyles';
 
 export default function MyConfessionsScreen({ navigation }: any) {
+  const styles = useThemedStyles(makeMyConfStyles);
+  const colors = useColors();
   const { state } = useApp();
   const myConfessions = state.confessions
     .filter((c) => c.authorId === state.username)
@@ -37,7 +40,7 @@ export default function MyConfessionsScreen({ navigation }: any) {
           </View>
           <Text style={styles.emptyTitle}>No confessions yet</Text>
           <Text style={styles.emptySub}>
-            Anything you post will appear here.
+            Anything you share will show up right here.
           </Text>
           <TouchableOpacity
             style={styles.postBtn}
@@ -66,7 +69,10 @@ export default function MyConfessionsScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+
+
+function makeMyConfStyles(colors: ColorPalette) {
+  return {
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row',
@@ -118,4 +124,5 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   postBtnText: { color: '#fff', fontWeight: fontWeight.semibold, fontSize: typography.sm },
-});
+};
+}

@@ -2,9 +2,12 @@ import React, { memo } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Reply } from '../types';
-import { colors, typography, fontWeight, radius } from '../store/theme';
+import { typography, fontWeight, radius, ColorPalette } from '../store/theme';
+import { useThemedStyles } from '../store/useThemedStyles';
 import { formatCount, timeAgo } from './utils';
 import { useApp } from '../store/AppContext';
+import { useAuthGate } from './AuthGate';
+import { useColors } from '../store/theme';
 
 interface Props {
   reply: Reply;
@@ -16,7 +19,10 @@ const DEPTH_INDENT = 18;
 const MAX_DEPTH_VISUAL = 4;
 
 function ReplyItem({ reply, depth = 0, onReplyPress }: Props) {
+  const styles = useThemedStyles(makeReplyStyles);
+  const colors = useColors();
   const { state, dispatch } = useApp();
+  const { requireAuth } = useAuthGate();
   const isUpvoted = state.upvotedReplyIds.has(reply.id);
   const isDownvoted = state.downvotedReplyIds.has(reply.id);
   const indent = Math.min(depth, MAX_DEPTH_VISUAL) * DEPTH_INDENT;
@@ -36,7 +42,10 @@ function ReplyItem({ reply, depth = 0, onReplyPress }: Props) {
           { paddingLeft: 16 + indent },
           pressed && styles.pressed,
         ]}
-        onPress={() => onReplyPress(reply)}
+        onPress={() => {
+          if (!requireAuth('Sign in to reply.')) return;
+          onReplyPress(reply);
+        }}
         accessible
         accessibilityLabel={`Reply by ${reply.authorId}: ${reply.text}`}
       >
@@ -63,7 +72,10 @@ function ReplyItem({ reply, depth = 0, onReplyPress }: Props) {
           <View style={styles.actions}>
             <TouchableOpacity
               style={styles.actionBtn}
-              onPress={() => dispatch({ type: 'TOGGLE_REPLY_UPVOTE', payload: reply.id })}
+              onPress={() => {
+                if (!requireAuth('Sign in to like replies.')) return;
+                dispatch({ type: 'TOGGLE_REPLY_UPVOTE', payload: reply.id });
+              }}
               hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
             >
               <Ionicons
@@ -79,7 +91,10 @@ function ReplyItem({ reply, depth = 0, onReplyPress }: Props) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => dispatch({ type: 'TOGGLE_REPLY_DOWNVOTE', payload: reply.id })}
+              onPress={() => {
+                if (!requireAuth('Sign in to vote on replies.')) return;
+                dispatch({ type: 'TOGGLE_REPLY_DOWNVOTE', payload: reply.id });
+              }}
               hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
             >
               <Ionicons
@@ -91,7 +106,10 @@ function ReplyItem({ reply, depth = 0, onReplyPress }: Props) {
 
             <TouchableOpacity
               style={styles.actionBtn}
-              onPress={() => onReplyPress(reply)}
+              onPress={() => {
+                if (!requireAuth('Sign in to reply.')) return;
+                onReplyPress(reply);
+              }}
               hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
             >
               <Ionicons name="chatbubble-outline" size={14} color={colors.voteDefault} />
@@ -116,7 +134,8 @@ function ReplyItem({ reply, depth = 0, onReplyPress }: Props) {
 
 export default memo(ReplyItem);
 
-const styles = StyleSheet.create({
+function makeReplyStyles(colors: ColorPalette) {
+  return {
   threadWrap: {
     height: 8,
     width: 1,
@@ -207,4 +226,5 @@ const styles = StyleSheet.create({
     fontSize: typography.xs,
     fontWeight: fontWeight.medium,
   },
-});
+  };
+}

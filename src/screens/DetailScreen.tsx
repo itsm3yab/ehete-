@@ -17,13 +17,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../store/AppContext';
 import ReplyItem from '../components/ReplyItem';
 import { SkeletonReply } from '../components/SkeletonCard';
+import { useAuthGate } from '../components/AuthGate';
 import { Reply, Confession } from '../types';
-import { colors, typography, fontWeight, radius } from '../store/theme';
+import { typography, fontWeight, radius, useColors, ColorPalette } from '../store/theme';
+import { useThemedStyles } from '../store/useThemedStyles';
 import { getCategoryTheme, formatCount, timeAgo, estimatedViews } from '../components/utils';
 
 export default function DetailScreen({ route, navigation }: any) {
+  const styles = useThemedStyles(makeDetailStyles);
+  const colors = useColors();
   const { confession }: { confession: Confession } = route.params;
   const { state, dispatch } = useApp();
+  const { requireAuth } = useAuthGate();
   const [replyText, setReplyText] = useState('');
   const [replyingTo, setReplyingTo] = useState<Reply | null>(null);
   const inputRef = useRef<TextInput>(null);
@@ -45,6 +50,7 @@ export default function DetailScreen({ route, navigation }: any) {
   );
 
   const handleSendReply = useCallback(() => {
+    if (!requireAuth('Sign in to reply to confessions.')) return;
     const text = replyText.trim();
     if (!text) return;
     const newReply: Reply = {
@@ -62,12 +68,19 @@ export default function DetailScreen({ route, navigation }: any) {
     setReplyText('');
     setReplyingTo(null);
     inputRef.current?.blur();
-  }, [replyText, replyingTo, current.id, state.username, dispatch]);
+  }, [replyText, replyingTo, current.id, state.username, dispatch, requireAuth]);
 
   const handleReplyPress = useCallback((reply: Reply) => {
+    if (!requireAuth('Sign in to reply.')) return;
     setReplyingTo(reply);
     inputRef.current?.focus();
-  }, []);
+  }, [requireAuth]);
+
+  const guardComposerFocus = useCallback(() => {
+    if (!requireAuth('Sign in to reply to confessions.')) {
+      inputRef.current?.blur();
+    }
+  }, [requireAuth]);
 
   const handleReport = useCallback(() => {
     Alert.alert(
@@ -136,7 +149,10 @@ export default function DetailScreen({ route, navigation }: any) {
           {/* Upvote */}
           <TouchableOpacity
             style={[styles.voteBtn, isUpvoted && styles.voteBtnUpActive]}
-            onPress={() => dispatch({ type: 'TOGGLE_UPVOTE', payload: current.id })}
+            onPress={() => {
+              if (!requireAuth('Sign in to like confessions.')) return;
+              dispatch({ type: 'TOGGLE_UPVOTE', payload: current.id });
+            }}
             accessibilityLabel={isUpvoted ? 'Remove upvote' : 'Upvote'}
           >
             <Ionicons
@@ -152,7 +168,10 @@ export default function DetailScreen({ route, navigation }: any) {
           {/* Downvote */}
           <TouchableOpacity
             style={[styles.voteBtn, isDownvoted && styles.voteBtnDownActive]}
-            onPress={() => dispatch({ type: 'TOGGLE_DOWNVOTE', payload: current.id })}
+            onPress={() => {
+              if (!requireAuth('Sign in to vote on confessions.')) return;
+              dispatch({ type: 'TOGGLE_DOWNVOTE', payload: current.id });
+            }}
             accessibilityLabel={isDownvoted ? 'Remove downvote' : 'Downvote'}
           >
             <Ionicons
@@ -167,7 +186,10 @@ export default function DetailScreen({ route, navigation }: any) {
           {/* Save */}
           <TouchableOpacity
             style={styles.iconAction}
-            onPress={() => dispatch({ type: 'TOGGLE_SAVE', payload: current.id })}
+            onPress={() => {
+              if (!requireAuth('Sign in to save confessions.')) return;
+              dispatch({ type: 'TOGGLE_SAVE', payload: current.id });
+            }}
             accessibilityLabel={isSaved ? 'Unsave' : 'Save'}
           >
             <Ionicons
@@ -203,7 +225,7 @@ export default function DetailScreen({ route, navigation }: any) {
         </View>
       )}
     </View>
-  ), [current, isUpvoted, isDownvoted, isSaved, topReplies.length, state.isLoading, netVotes, views, voteColor, theme]);
+  ), [current, isUpvoted, isDownvoted, isSaved, topReplies.length, state.isLoading, netVotes, views, voteColor, theme, requireAuth, dispatch, handleShare, handleReport, authorLabel]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -270,17 +292,18 @@ export default function DetailScreen({ route, navigation }: any) {
             <TextInput
               ref={inputRef}
               style={styles.composerInput}
-              placeholder="Add a reply..."
+              placeholder={state.isLoggedIn ? 'Add a reply...' : 'Sign in to reply...'}
               placeholderTextColor={colors.textMeta}
               value={replyText}
               onChangeText={setReplyText}
+              onFocus={guardComposerFocus}
               multiline
               maxLength={1000}
             />
             <TouchableOpacity
               style={[styles.sendBtn, !replyText.trim() && styles.sendBtnDisabled]}
               onPress={handleSendReply}
-              disabled={!replyText.trim()}
+              disabled={!replyText.trim() && state.isLoggedIn}
               accessibilityLabel="Send reply"
             >
               <Ionicons name="send" size={17} color={replyText.trim() ? '#fff' : colors.textMeta} />
@@ -292,7 +315,10 @@ export default function DetailScreen({ route, navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+
+
+function makeDetailStyles(colors: ColorPalette) {
+  return {
   container: { flex: 1, backgroundColor: colors.bg },
   navBar: {
     flexDirection: 'row',
@@ -445,4 +471,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendBtnDisabled: { backgroundColor: colors.bgElevated },
-});
+};
+}

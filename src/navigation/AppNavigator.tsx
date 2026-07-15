@@ -1,12 +1,25 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  LayoutChangeEvent,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useApp } from '../store/AppContext';
-import { colors, typography } from '../store/theme';
+import { useTheme, useColors, fontWeight } from '../store/theme';
+import { TabBarScrollProvider, useTabBarScroll } from './TabBarScrollContext';
+import { AuthGateProvider, promptAuth } from '../components/AuthGate';
+import { navigationRef } from './navigationRef';
+import { hapticSelect } from '../utils/haptics';
 
 import WelcomeScreen from '../screens/WelcomeScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -15,200 +28,359 @@ import FeedScreen from '../screens/FeedScreen';
 import SearchScreen from '../screens/SearchScreen';
 import PostScreen from '../screens/PostScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import VotingScreen from '../screens/VotingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import DetailScreen from '../screens/DetailScreen';
 import MyConfessionsScreen from '../screens/MyConfessionsScreen';
 import SavedScreen from '../screens/SavedScreen';
 import HelpSupportScreen from '../screens/HelpSupportScreen';
+import FaqScreen from '../screens/FaqScreen';
+import NotificationsSettingsScreen from '../screens/NotificationsSettingsScreen';
+import PrivacySettingsScreen from '../screens/PrivacySettingsScreen';
+import AppearanceSettingsScreen from '../screens/AppearanceSettingsScreen';
+import AboutScreen from '../screens/AboutScreen';
 
-// ─── Navigation Theme ─────────────────────────────────────────────────────────
-
-const NavTheme = {
-  ...DefaultTheme,
-  dark: true,
-  colors: {
-    ...DefaultTheme.colors,
-    primary: colors.accent,
-    background: colors.bg,
-    card: colors.bgCard,
-    text: colors.textPrimary,
-    border: colors.border,
-    notification: colors.accent,
-  },
+// Telegram-style floating solid tab bar
+const TG = {
+  active: '#2AABEE',
+  inactive: '#8E8E93',
+  label: 10,
+  icon: 24,
+  radius: 28,
+  side: 14,
+  height: 62,
 };
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const ModalOptions = {
-  headerShown: false,
-  ...TransitionPresets.ModalSlideFromBottomIOS,
-  cardStyle: { backgroundColor: colors.bg },
-};
-
-const PushOptions = {
+const PushOptionsBase = {
   headerShown: false,
   ...TransitionPresets.SlideFromRightIOS,
-  cardStyle: { backgroundColor: colors.bg },
 };
 
-// ─── Auth Stack ───────────────────────────────────────────────────────────────
-
 function AuthStack() {
+  const colors = useColors();
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.bg } }}>
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
-      <Stack.Screen name="Login" component={LoginScreen} options={PushOptions} />
-      <Stack.Screen name="Signup" component={SignupScreen} options={PushOptions} />
+      <Stack.Screen name="Login" component={LoginScreen} options={{ ...PushOptionsBase, cardStyle: { backgroundColor: colors.bg } }} />
+      <Stack.Screen name="Signup" component={SignupScreen} options={{ ...PushOptionsBase, cardStyle: { backgroundColor: colors.bg } }} />
     </Stack.Navigator>
   );
 }
 
-// ─── Feed Stack ───────────────────────────────────────────────────────────────
-
 function FeedStack() {
+  const colors = useColors();
+  const push = { ...PushOptionsBase, cardStyle: { backgroundColor: colors.bg } };
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.bg } }}>
       <Stack.Screen name="FeedHome" component={FeedScreen} />
-      <Stack.Screen name="Detail" component={DetailScreen} options={PushOptions} />
-      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={PushOptions} />
+      <Stack.Screen name="Detail" component={DetailScreen} options={push} />
+      <Stack.Screen name="Profile" component={ProfileScreen} options={push} />
+      <Stack.Screen name="MyConfessions" component={MyConfessionsScreen} options={push} />
+      <Stack.Screen name="Saved" component={SavedScreen} options={push} />
+      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={push} />
+      <Stack.Screen name="Faq" component={FaqScreen} options={push} />
+      <Stack.Screen name="NotificationsSettings" component={NotificationsSettingsScreen} options={push} />
+      <Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} options={push} />
+      <Stack.Screen name="AppearanceSettings" component={AppearanceSettingsScreen} options={push} />
+      <Stack.Screen name="About" component={AboutScreen} options={push} />
+      <Stack.Screen name="Login" component={LoginScreen} options={push} />
+      <Stack.Screen name="Signup" component={SignupScreen} options={push} />
     </Stack.Navigator>
   );
 }
 
-// ─── Search Stack ─────────────────────────────────────────────────────────────
-
 function SearchStack() {
+  const colors = useColors();
+  const push = { ...PushOptionsBase, cardStyle: { backgroundColor: colors.bg } };
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.bg } }}>
       <Stack.Screen name="SearchHome" component={SearchScreen} />
-      <Stack.Screen name="Detail" component={DetailScreen} options={PushOptions} />
+      <Stack.Screen name="Detail" component={DetailScreen} options={push} />
     </Stack.Navigator>
   );
 }
 
-// ─── Profile Stack ────────────────────────────────────────────────────────────
-
-function ProfileStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.bg } }}>
-      <Stack.Screen name="ProfileHome" component={ProfileScreen} />
-      <Stack.Screen name="MyConfessions" component={MyConfessionsScreen} options={PushOptions} />
-      <Stack.Screen name="Saved" component={SavedScreen} options={PushOptions} />
-      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={PushOptions} />
-      <Stack.Screen name="Detail" component={DetailScreen} options={PushOptions} />
-      <Stack.Screen name="Login" component={LoginScreen} options={PushOptions} />
-      <Stack.Screen name="Signup" component={SignupScreen} options={PushOptions} />
-    </Stack.Navigator>
-  );
-}
-
-// ─── Main Tabs ────────────────────────────────────────────────────────────────
-
-const TAB_ICONS: Record<string, [string, string]> = {
-  Feed:          ['home',          'home-outline'],
-  Search:        ['search',        'search-outline'],
-  Post:          ['add-circle',    'add-circle-outline'],
-  Notifications: ['notifications', 'notifications-outline'],
-  Profile:       ['person',        'person-outline'],
+const TAB_META: Record<string, { outline: string; filled: string; label: string }> = {
+  Feed: { outline: 'chatbubbles-outline', filled: 'chatbubbles', label: 'Home' },
+  Search: { outline: 'search-outline', filled: 'search', label: 'Search' },
+  Post: { outline: 'create-outline', filled: 'create', label: 'New' },
+  Voting: { outline: 'bar-chart-outline', filled: 'bar-chart', label: 'Voting' },
+  Notifications: { outline: 'notifications-outline', filled: 'notifications', label: 'Alerts' },
 };
 
-function MainTabs() {
-  const { state } = useApp();
+function TabBar({ state, descriptors, navigation }: any) {
+  const insets = useSafeAreaInsets();
+  const colors = useColors();
+  const { isDark } = useTheme();
+  const { translateY, showTabBar } = useTabBarScroll();
+  const [barWidth, setBarWidth] = useState(0);
+  const lensX = useRef(new Animated.Value(0)).current;
+  const lensScale = useRef(new Animated.Value(1)).current;
+  const inactive = isDark ? '#8E8E93' : '#0f1419';
+  const active = isDark ? TG.active : '#0f1419';
+  const tabCount = state.routes.length;
+  const tabW = barWidth > 0 ? barWidth / tabCount : 0;
+
+  useEffect(() => {
+    showTabBar();
+  }, [state.index, showTabBar]);
+
+  useEffect(() => {
+    if (tabW <= 0) return;
+    Animated.parallel([
+      Animated.spring(lensX, {
+        toValue: state.index * tabW,
+        useNativeDriver: true,
+        friction: 8,
+        tension: 70,
+      }),
+      Animated.sequence([
+        Animated.timing(lensScale, {
+          toValue: 0.92,
+          duration: 90,
+          useNativeDriver: true,
+        }),
+        Animated.spring(lensScale, {
+          toValue: 1,
+          friction: 5,
+          tension: 120,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [state.index, tabW]);
+
+  const onBarLayout = (e: LayoutChangeEvent) => {
+    setBarWidth(e.nativeEvent.layout.width);
+  };
 
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarShowLabel: false,
-        tabBarActiveTintColor: colors.navIconActive,
-        tabBarInactiveTintColor: colors.navIcon,
-        tabBarIcon: ({ focused, color }) => {
-          const [filled, outline] = TAB_ICONS[route.name] ?? ['ellipse', 'ellipse-outline'];
-          const isPost = route.name === 'Post';
-          if (isPost) {
-            return (
-              <View style={[styles.postTabBtn, focused && styles.postTabBtnActive]}>
-                <Ionicons name="add" size={24} color={focused ? '#fff' : colors.navIconActive} />
-              </View>
-            );
-          }
-          return (
-            <Ionicons
-              name={(focused ? filled : outline) as any}
-              size={24}
-              color={color}
-            />
-          );
+    <Animated.View
+      pointerEvents="box-none"
+      style={[
+        styles.dock,
+        {
+          paddingBottom: Math.max(insets.bottom, 10),
+          transform: [{ translateY }],
         },
-      })}
+      ]}
     >
-      <Tab.Screen name="Feed" component={FeedStack} />
-      <Tab.Screen name="Search" component={SearchStack} />
-      <Tab.Screen
-        name="Post"
-        component={PostScreen}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            e.preventDefault();
-            if (state.isLoggedIn) {
-              navigation.navigate('Post');
-            } else {
-              navigation.navigate('Profile', { screen: 'Login' });
-            }
+      <View
+        style={[
+          styles.bar,
+          {
+            backgroundColor: colors.bg,
+            borderColor: colors.border,
+            ...Platform.select({
+              ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: isDark ? 0.45 : 0.12,
+                shadowRadius: 16,
+              },
+              android: { elevation: isDark ? 12 : 6 },
+              default: {},
+            }),
           },
-        })}
-      />
-      <Tab.Screen name="Notifications" component={NotificationsScreen} />
-      <Tab.Screen name="Profile" component={ProfileStack} />
-    </Tab.Navigator>
+        ]}
+      >
+        <View style={styles.tabsRow} onLayout={onBarLayout}>
+          {tabW > 0 && (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.lens,
+                {
+                  width: tabW - 8,
+                  backgroundColor: isDark ? '#111111' : colors.bgElevated,
+                  transform: [
+                    { translateX: Animated.add(lensX, 4) },
+                    { scale: lensScale },
+                  ],
+                },
+              ]}
+            />
+          )}
+
+          {state.routes.map((route: any, index: number) => {
+            const isFocused = state.index === index;
+            const meta = TAB_META[route.name] ?? {
+              outline: 'ellipse-outline',
+              filled: 'ellipse',
+              label: route.name,
+            };
+            const { options } = descriptors[route.key];
+            const color = isFocused ? active : inactive;
+
+            const onPress = () => {
+              hapticSelect();
+              const event = navigation.emit({
+                type: 'tabPress',
+                target: route.key,
+                canPreventDefault: true,
+              });
+              if (!isFocused && !event.defaultPrevented) {
+                navigation.navigate(route.name);
+              }
+            };
+
+            return (
+              <Pressable
+                key={route.key}
+                accessibilityRole="button"
+                accessibilityState={isFocused ? { selected: true } : {}}
+                accessibilityLabel={options.tabBarAccessibilityLabel ?? meta.label}
+                onPress={onPress}
+                onLongPress={() =>
+                  navigation.emit({ type: 'tabLongPress', target: route.key })
+                }
+                style={({ pressed }) => [styles.tab, pressed && styles.tabPressed]}
+              >
+                <Ionicons
+                  name={(isFocused ? meta.filled : meta.outline) as any}
+                  size={TG.icon}
+                  color={color}
+                />
+                <Text
+                  numberOfLines={1}
+                  style={[styles.label, { color }, isFocused && styles.labelActive]}
+                >
+                  {meta.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    </Animated.View>
   );
 }
 
-// ─── Root Navigator ───────────────────────────────────────────────────────────
+function MainTabs() {
+  const { state: ctx } = useApp();
+  const colors = useColors();
+
+  return (
+    <TabBarScrollProvider>
+      <Tab.Navigator
+        tabBar={(props) => <TabBar {...props} />}
+        screenOptions={{
+          headerShown: false,
+          tabBarHideOnKeyboard: true,
+          sceneStyle: { backgroundColor: colors.bg },
+        }}
+      >
+        <Tab.Screen name="Feed" component={FeedStack} />
+        <Tab.Screen name="Search" component={SearchStack} />
+        <Tab.Screen
+          name="Post"
+          component={PostScreen}
+          listeners={({ navigation }) => ({
+            tabPress: (e) => {
+              e.preventDefault();
+              if (ctx.isLoggedIn) {
+                navigation.navigate('Post');
+              } else {
+                promptAuth('Sign in to share a confession.');
+              }
+            },
+          })}
+        />
+        <Tab.Screen name="Voting" component={VotingScreen} />
+        <Tab.Screen name="Notifications" component={NotificationsScreen} />
+      </Tab.Navigator>
+    </TabBarScrollProvider>
+  );
+}
 
 function RootNavigator() {
+  const colors = useColors();
+  const push = { headerShown: false, ...TransitionPresets.SlideFromRightIOS, cardStyle: { backgroundColor: colors.bg } };
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.bg } }}>
       <Stack.Screen name="Auth" component={AuthStack} />
       <Stack.Screen name="Main" component={MainTabs} />
-      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={PushOptions} />
+      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} options={push} />
+      <Stack.Screen name="Faq" component={FaqScreen} options={push} />
     </Stack.Navigator>
   );
 }
 
-// ─── App Navigator ────────────────────────────────────────────────────────────
-
 export default function AppNavigator() {
+  const { colors, isDark } = useTheme();
+  const navTheme = {
+    ...DefaultTheme,
+    dark: isDark,
+    colors: {
+      ...DefaultTheme.colors,
+      primary: colors.accent,
+      background: colors.bg,
+      card: colors.bgCard,
+      text: colors.textPrimary,
+      border: colors.border,
+      notification: colors.accent,
+    },
+  };
   return (
-    <NavigationContainer theme={NavTheme}>
-      <RootNavigator />
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
+      <AuthGateProvider>
+        <RootNavigator />
+      </AuthGateProvider>
     </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: colors.bgCard,
-    borderTopWidth: 0.5,
-    borderTopColor: colors.border,
-    height: 56,
-    paddingBottom: 6,
-    paddingTop: 6,
+  dock: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: TG.side,
+    alignItems: 'center',
   },
-  postTabBtn: {
-    width: 44,
-    height: 44,
+  bar: {
+    width: '100%',
+    minHeight: TG.height,
+    borderRadius: TG.radius,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: TG.height,
+    paddingHorizontal: 2,
+    paddingVertical: 4,
+    borderRadius: TG.radius,
+    overflow: 'hidden',
+  },
+  lens: {
+    position: 'absolute',
+    top: 5,
+    bottom: 5,
     borderRadius: 22,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+  },
+  tab: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 2,
+    zIndex: 1,
+    paddingVertical: 6,
   },
-  postTabBtnActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+  tabPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.94 }],
+  },
+  label: {
+    fontSize: TG.label,
+    fontWeight: fontWeight.regular,
+    letterSpacing: 0.2,
+  },
+  labelActive: {
+    fontWeight: fontWeight.semibold,
   },
 });

@@ -1,8 +1,9 @@
 import React, { useRef, useState } from 'react';
 import {
   Alert,
-  Animated,
+  Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -14,19 +15,30 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../store/AppContext';
-import { colors, typography, fontWeight, radius, categoryTheme } from '../store/theme';
+import { typography, fontWeight, radius, useColors, useTheme, ColorPalette } from '../store/theme';
+import { useThemedStyles } from '../store/useThemedStyles';
+import { getCategoryTheme } from '../components/utils';
 import { CATEGORIES, Confession } from '../types';
 
 const MAX_CHARS = 3000;
 const WARN_AT = 2700;
 
 export default function PostScreen({ navigation }: any) {
+  const styles = useThemedStyles(makePostStyles);
+  const colors = useColors();
+  const { mode } = useTheme();
   const { state, dispatch } = useApp();
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
   const [category, setCategory] = useState<string>('Love');
   const [focused, setFocused] = useState<string | null>(null);
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [linkUrl, setLinkUrl] = useState<string | null>(null);
+  const [hasVoiceNote, setHasVoiceNote] = useState(false);
+  const [linkModal, setLinkModal] = useState(false);
+  const [linkDraft, setLinkDraft] = useState('');
   const bodyRef = useRef<TextInput>(null);
 
   const remaining = MAX_CHARS - text.length;
@@ -34,9 +46,48 @@ export default function PostScreen({ navigation }: any) {
   const isNearLimit = text.length >= WARN_AT;
   const canPost = text.trim().length > 0 && !isOverLimit;
 
-  // Animated progress bar
   const progress = Math.min(text.length / MAX_CHARS, 1);
   const barColor = isOverLimit ? colors.danger : isNearLimit ? colors.warning : colors.accent;
+
+  const pickImage = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to attach an image.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]?.uri) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
+  const openLinkModal = () => {
+    setLinkDraft(linkUrl ?? '');
+    setLinkModal(true);
+  };
+
+  const saveLink = () => {
+    const raw = linkDraft.trim();
+    if (!raw) {
+      setLinkUrl(null);
+      setLinkModal(false);
+      return;
+    }
+    const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    setLinkUrl(url);
+    setLinkModal(false);
+  };
+
+  const toggleVoice = () => {
+    if (hasVoiceNote) {
+      setHasVoiceNote(false);
+      return;
+    }
+    setHasVoiceNote(true);
+  };
 
   const handleSubmit = () => {
     if (!text.trim()) {
@@ -57,18 +108,19 @@ export default function PostScreen({ navigation }: any) {
       replyCount: 0,
       timestamp: Date.now(),
       authorId: state.username,
+      imageUri,
+      linkUrl,
+      hasVoiceNote,
     };
     dispatch({ type: 'ADD_CONFESSION', payload: confession });
     navigation.goBack();
   };
 
-  const catTheme = categoryTheme[category] ?? { bg: colors.accentDim, text: colors.accent };
+  const catTheme = getCategoryTheme(category, mode);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
@@ -104,7 +156,6 @@ export default function PostScreen({ navigation }: any) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Avatar + inputs */}
           <View style={styles.composeRow}>
             <View style={styles.authorAvatar}>
               <Text style={styles.authorAvatarText}>
@@ -118,55 +169,76 @@ export default function PostScreen({ navigation }: any) {
                 placeholderTextColor={colors.textMeta}
                 value={title}
                 onChangeText={setTitle}
-                maxLength={120}
-                returnKeyType="next"
-                onSubmitEditing={() => bodyRef.current?.focus()}
                 onFocus={() => setFocused('title')}
                 onBlur={() => setFocused(null)}
+                maxLength={120}
               />
               <TextInput
                 ref={bodyRef}
                 style={styles.bodyInput}
-                placeholder="What's on your mind? This is a safe, anonymous space."
+                placeholder="What's weighing on you?"
                 placeholderTextColor={colors.textMeta}
                 value={text}
                 onChangeText={setText}
-                multiline
-                textAlignVertical="top"
-                autoFocus
                 onFocus={() => setFocused('body')}
                 onBlur={() => setFocused(null)}
+                multiline
+                textAlignVertical="top"
               />
             </View>
           </View>
 
-          {/* Char progress */}
-          {text.length > 0 && (
-            <View style={styles.progressRow}>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${Math.min(progress * 100, 100)}%`, backgroundColor: barColor }]} />
-              </View>
-              <Text style={[styles.charCount, (isOverLimit || isNearLimit) && { color: barColor }]}>
-                {isOverLimit ? `${Math.abs(remaining)} over` : remaining}
-              </Text>
+          {(imageUri || linkUrl || hasVoiceNote) && (
+            <View style={styles.attachPreview}>
+              {imageUri ? (
+                <View style={styles.previewItem}>
+                  <Image source={{ uri: imageUri }} style={styles.previewImage} />
+                  <TouchableOpacity style={styles.removeChip} onPress={() => setImageUri(null)}>
+                    <Ionicons name="close" size={14} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+              {linkUrl ? (
+                <View style={styles.linkChip}>
+                  <Ionicons name="link" size={14} color={colors.accent} />
+                  <Text style={styles.linkChipText} numberOfLines={1}>{linkUrl}</Text>
+                  <TouchableOpacity onPress={() => setLinkUrl(null)}>
+                    <Ionicons name="close" size={14} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+              {hasVoiceNote ? (
+                <View style={styles.linkChip}>
+                  <Ionicons name="mic" size={14} color={colors.accent} />
+                  <Text style={styles.linkChipText}>Voice note attached</Text>
+                  <TouchableOpacity onPress={() => setHasVoiceNote(false)}>
+                    <Ionicons name="close" size={14} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
             </View>
           )}
 
-          {/* Category picker */}
+          <View style={styles.progressRow}>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: barColor }]} />
+            </View>
+            <Text style={[styles.charCount, isNearLimit && { color: barColor }]}>{remaining}</Text>
+          </View>
+
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Category</Text>
             <View style={styles.chipsGrid}>
               {CATEGORIES.map((cat) => {
-                const t = categoryTheme[cat] ?? { bg: colors.bgElevated, text: colors.textSecondary, dot: colors.accent };
                 const active = category === cat;
+                const t = getCategoryTheme(cat, mode);
                 return (
                   <TouchableOpacity
                     key={cat}
                     style={[
                       styles.chip,
-                      active
-                        ? { backgroundColor: t.bg, borderColor: t.dot }
-                        : { backgroundColor: colors.bgCard, borderColor: colors.border },
+                      { borderColor: colors.border },
+                      active && { backgroundColor: t.bg, borderColor: t.dot },
                     ]}
                     onPress={() => setCategory(cat)}
                     accessibilityRole="radio"
@@ -183,36 +255,61 @@ export default function PostScreen({ navigation }: any) {
             </View>
           </View>
 
-          {/* Attachment bar */}
           <View style={styles.attachBar}>
-            {[
-              { icon: 'image-outline', label: 'Image' },
-              { icon: 'mic-outline', label: 'Voice' },
-              { icon: 'link-outline', label: 'Link' },
-            ].map(({ icon, label }) => (
-              <TouchableOpacity
-                key={label}
-                style={styles.attachBtn}
-                onPress={() => Alert.alert('Coming Soon', `${label} attachment coming soon!`)}
-              >
-                <Ionicons name={icon as any} size={20} color={colors.textSecondary} />
-                <Text style={styles.attachText}>{label}</Text>
-              </TouchableOpacity>
-            ))}
+            <TouchableOpacity style={styles.attachBtn} onPress={pickImage}>
+              <Ionicons name="image-outline" size={20} color={imageUri ? colors.accent : colors.textSecondary} />
+              <Text style={[styles.attachText, !!imageUri && { color: colors.accent }]}>Image</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.attachBtn} onPress={toggleVoice}>
+              <Ionicons name="mic-outline" size={20} color={hasVoiceNote ? colors.accent : colors.textSecondary} />
+              <Text style={[styles.attachText, hasVoiceNote && { color: colors.accent }]}>Voice</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.attachBtn} onPress={openLinkModal}>
+              <Ionicons name="link-outline" size={20} color={linkUrl ? colors.accent : colors.textSecondary} />
+              <Text style={[styles.attachText, !!linkUrl && { color: colors.accent }]}>Link</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Anonymous notice */}
           <View style={styles.anonNotice}>
             <Ionicons name="shield-checkmark-outline" size={15} color={colors.success} />
             <Text style={styles.anonText}>Posted anonymously. Your identity is never revealed.</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal visible={linkModal} transparent animationType="fade" onRequestClose={() => setLinkModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Add a link</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="https://example.com"
+              placeholderTextColor={colors.textMeta}
+              value={linkDraft}
+              onChangeText={setLinkDraft}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity onPress={() => setLinkModal(false)}>
+                <Text style={styles.modalCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSave} onPress={saveLink}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+
+
+function makePostStyles(colors: ColorPalette) {
+  return {
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row',
@@ -268,6 +365,32 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     minHeight: 140,
   },
+  attachPreview: { gap: 10 },
+  previewItem: { position: 'relative', alignSelf: 'flex-start' },
+  previewImage: { width: 120, height: 120, borderRadius: radius.md },
+  removeChip: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  linkChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  linkChipText: { flex: 1, color: colors.textSecondary, fontSize: typography.xs },
   progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -335,4 +458,46 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   anonText: { color: colors.success, fontSize: typography.xs, flex: 1, lineHeight: 18 },
-});
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+  modalCard: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.lg,
+    padding: 18,
+    gap: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  modalTitle: {
+    color: colors.textPrimary,
+    fontWeight: fontWeight.bold,
+    fontSize: typography.base,
+  },
+  modalInput: {
+    backgroundColor: colors.bgInput,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    color: colors.textPrimary,
+    fontSize: typography.sm,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 16,
+  },
+  modalCancel: { color: colors.textSecondary, fontSize: typography.sm },
+  modalSave: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: radius.full,
+  },
+  modalSaveText: { color: '#fff', fontWeight: fontWeight.bold, fontSize: typography.sm },
+};
+}
