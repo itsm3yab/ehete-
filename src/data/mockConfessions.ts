@@ -29,7 +29,7 @@ export const mockConfessions: Confession[] = [
     id: '3',
     title: 'Secret love',
     text: "I'm in love with someone who has no idea I exist. I see them every day at work. They're so kind and funny, I wish I had the courage to talk to them.",
-    category: 'Love',
+    category: 'Love/Cheating',
     upvotes: 214,
     downvotes: 5,
     replyCount: 7,

@@ -36,6 +36,7 @@ export interface PollOption {
 export interface Poll {
   id: string;
   question: string;
+  category: string;
   options: PollOption[];
   authorId: string;
   timestamp: number;
@@ -46,7 +47,7 @@ export interface Poll {
 }
 
 export const CATEGORIES = [
-  'Love',
+  'Love/Cheating',
   'Family',
   'Work',
   'Mental Health',

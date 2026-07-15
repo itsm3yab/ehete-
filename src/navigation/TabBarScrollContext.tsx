@@ -1,4 +1,11 @@
-import React, { createContext, useCallback, useContext, useMemo, useRef } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Animated, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 
 type TabBarScrollContextValue = {
@@ -6,6 +13,8 @@ type TabBarScrollContextValue = {
   onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
   showTabBar: () => void;
   hideTabBar: () => void;
+  /** When true, tab bar should not render (e.g. detail / reply screen). */
+  forceHidden: boolean;
 };
 
 const TabBarScrollContext = createContext<TabBarScrollContextValue | null>(null);
@@ -18,7 +27,8 @@ export function TabBarScrollProvider({ children }: { children: React.ReactNode }
   const lastY = useRef(0);
   const visible = useRef(true);
   const animating = useRef(false);
-  const forceHidden = useRef(false);
+  const forceHiddenRef = useRef(false);
+  const [forceHidden, setForceHidden] = useState(false);
 
   const animateTo = useCallback(
     (toValue: number, nextVisible: boolean) => {
@@ -37,19 +47,21 @@ export function TabBarScrollProvider({ children }: { children: React.ReactNode }
   );
 
   const showTabBar = useCallback(() => {
-    forceHidden.current = false;
+    forceHiddenRef.current = false;
+    setForceHidden(false);
     lastY.current = 0;
     animateTo(0, true);
   }, [animateTo]);
 
   const hideTabBar = useCallback(() => {
-    forceHidden.current = true;
+    forceHiddenRef.current = true;
+    setForceHidden(true);
     animateTo(HIDE_DISTANCE, false);
   }, [animateTo]);
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (forceHidden.current) return;
+      if (forceHiddenRef.current) return;
 
       const y = e.nativeEvent.contentOffset.y;
       const dy = y - lastY.current;
@@ -70,8 +82,8 @@ export function TabBarScrollProvider({ children }: { children: React.ReactNode }
   );
 
   const value = useMemo(
-    () => ({ translateY, onScroll, showTabBar, hideTabBar }),
-    [translateY, onScroll, showTabBar, hideTabBar]
+    () => ({ translateY, onScroll, showTabBar, hideTabBar, forceHidden }),
+    [translateY, onScroll, showTabBar, hideTabBar, forceHidden]
   );
 
   return (
@@ -92,6 +104,7 @@ export function useTabBarScroll() {
       onScroll: noopScroll,
       showTabBar: noopShow,
       hideTabBar: noopHide,
+      forceHidden: false,
     };
   }
   return ctx;

@@ -32,7 +32,7 @@ export default function PostScreen({ navigation }: any) {
   const { state, dispatch } = useApp();
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
-  const [category, setCategory] = useState<string>('Love');
+  const [category, setCategory] = useState<string>('Love/Cheating');
   const [focused, setFocused] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [linkUrl, setLinkUrl] = useState<string | null>(null);

@@ -213,7 +213,7 @@ export default function FeedScreen({ navigation }: any) {
     >
       <Ionicons
         name={icon}
-        size={compact ? 20 : 24}
+        size={compact ? 22 : 26}
         color={danger ? colors.danger : colors.textPrimary}
       />
       <Text
@@ -412,7 +412,7 @@ export default function FeedScreen({ navigation }: any) {
                   onPress={() => setCategoriesOpen((v) => !v)}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="grid-outline" size={24} color={colors.textPrimary} />
+                  <Ionicons name="grid-outline" size={26} color={colors.textPrimary} />
                   <Text style={styles.xRowLabel}>Categories</Text>
                   <Ionicons
                     name={categoriesOpen ? 'chevron-up' : 'chevron-down'}
@@ -506,19 +506,10 @@ export default function FeedScreen({ navigation }: any) {
                   label="About Etete"
                   onPress={() => go(() => navigation.navigate('About'))}
                 />
-                {!isGuest && (
-                  <DrawerRow
-                    compact
-                    danger
-                    icon="log-out-outline"
-                    label="Sign Out"
-                    onPress={handleLogout}
-                  />
-                )}
               </View>
             </ScrollView>
 
-            {isGuest && (
+            {isGuest ? (
               <View style={styles.guestCtaWrap}>
                 <TouchableOpacity
                   style={styles.guestCta}
@@ -531,6 +522,19 @@ export default function FeedScreen({ navigation }: any) {
                   onPress={() => go(() => navigation.navigate('Signup'))}
                 >
                   <Text style={styles.guestSecondaryText}>Create account</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.signOutWrap}>
+                <TouchableOpacity
+                  style={styles.signOutBtn}
+                  onPress={handleLogout}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="Sign Out"
+                >
+                  <Ionicons name="log-out-outline" size={20} color={colors.danger} />
+                  <Text style={styles.signOutBtnText}>Sign Out</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -756,56 +760,56 @@ function makeFeedStyles(colors: ColorPalette) {
     xDisplayName: {
       color: colors.textPrimary,
       fontWeight: fontWeight.extrabold,
-      fontSize: 20,
+      fontSize: 22,
       letterSpacing: -0.3,
     },
     xHandle: {
       color: colors.textSecondary,
-      fontSize: 14,
+      fontSize: 15,
       marginTop: 2,
     },
     xHairline: {
       height: StyleSheet.hairlineWidth,
       backgroundColor: colors.border,
-      marginVertical: 4,
+      marginVertical: 6,
     },
     xNavBlock: {
-      paddingVertical: 2,
+      paddingVertical: 4,
       paddingHorizontal: 6,
     },
     xNavBlockCompact: {
-      paddingVertical: 0,
+      paddingVertical: 2,
       paddingHorizontal: 6,
-      paddingBottom: 2,
+      paddingBottom: 4,
     },
     xSectionLabel: {
       color: colors.textSecondary,
-      fontSize: 13,
+      fontSize: 14,
       fontWeight: fontWeight.bold,
       paddingHorizontal: 18,
-      paddingTop: 6,
-      paddingBottom: 2,
+      paddingTop: 8,
+      paddingBottom: 4,
     },
     xRow: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       gap: 14,
-      paddingVertical: 11,
+      paddingVertical: 13,
       paddingHorizontal: 18,
       borderRadius: radius.md,
     },
     xRowCompact: {
-      paddingVertical: 8,
+      paddingVertical: 11,
       gap: 12,
     },
     xRowLabel: {
       color: colors.textPrimary,
-      fontSize: 17,
+      fontSize: 20,
       fontWeight: fontWeight.bold,
       letterSpacing: -0.2,
     },
     xRowLabelCompact: {
-      fontSize: 15,
+      fontSize: 17,
       fontWeight: fontWeight.semibold,
     },
     listsBlock: {
@@ -816,7 +820,7 @@ function makeFeedStyles(colors: ColorPalette) {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       gap: 12,
-      paddingVertical: 9,
+      paddingVertical: 10,
       paddingHorizontal: 18,
       borderRadius: radius.md,
     },
@@ -830,7 +834,7 @@ function makeFeedStyles(colors: ColorPalette) {
     },
     listItemText: {
       color: colors.textSecondary,
-      fontSize: 15,
+      fontSize: 16,
       fontWeight: fontWeight.medium,
       flex: 1,
     },
@@ -840,7 +844,7 @@ function makeFeedStyles(colors: ColorPalette) {
     },
     guestCtaWrap: {
       paddingHorizontal: 20,
-      paddingTop: 10,
+      paddingTop: 12,
       paddingBottom: 6,
       gap: 8,
       alignItems: 'center' as const,
@@ -850,14 +854,14 @@ function makeFeedStyles(colors: ColorPalette) {
     guestCta: {
       backgroundColor: colors.textPrimary,
       borderRadius: radius.full,
-      paddingVertical: 13,
+      paddingVertical: 14,
       alignItems: 'center' as const,
       width: '100%' as const,
     },
     guestCtaText: {
       color: colors.bg,
       fontWeight: fontWeight.bold,
-      fontSize: 16,
+      fontSize: 17,
     },
     guestSecondary: {
       paddingVertical: 4,
@@ -865,7 +869,31 @@ function makeFeedStyles(colors: ColorPalette) {
     guestSecondaryText: {
       color: colors.accent,
       fontWeight: fontWeight.semibold,
-      fontSize: 14,
+      fontSize: 15,
+    },
+    signOutWrap: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 6,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+    },
+    signOutBtn: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 8,
+      width: '100%' as const,
+      paddingVertical: 14,
+      borderRadius: radius.full,
+      borderWidth: 1.5,
+      borderColor: colors.danger,
+      backgroundColor: colors.dangerDim,
+    },
+    signOutBtnText: {
+      color: colors.danger,
+      fontWeight: fontWeight.bold,
+      fontSize: 17,
     },
 
     sortOverlay: {

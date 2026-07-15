@@ -186,6 +186,7 @@ export const fontWeight = {
 export const categoryThemeDark: Record<string, { bg: string; text: string; dot: string }> = {
   'Mental Health': { bg: '#2a1a3e', text: '#c084fc', dot: '#7c3aed' },
   Love: { bg: '#3a1128', text: '#f472b6', dot: '#ec4899' },
+  'Love/Cheating': { bg: '#3a1128', text: '#f472b6', dot: '#ec4899' },
   Work: { bg: '#2d1e00', text: '#fbbf24', dot: '#f59e0b' },
   Family: { bg: '#0d2818', text: '#34d399', dot: '#10b981' },
   Friendship: { bg: '#0d1f3a', text: '#60a5fa', dot: '#3b82f6' },
@@ -199,6 +200,7 @@ export const categoryThemeDark: Record<string, { bg: string; text: string; dot: 
 export const categoryThemeLight: Record<string, { bg: string; text: string; dot: string }> = {
   'Mental Health': { bg: '#f3e8ff', text: '#7c3aed', dot: '#7c3aed' },
   Love: { bg: '#fce7f3', text: '#db2777', dot: '#ec4899' },
+  'Love/Cheating': { bg: '#fce7f3', text: '#db2777', dot: '#ec4899' },
   Work: { bg: '#fef3c7', text: '#d97706', dot: '#f59e0b' },
   Family: { bg: '#d1fae5', text: '#059669', dot: '#10b981' },
   Friendship: { bg: '#dbeafe', text: '#2563eb', dot: '#3b82f6' },

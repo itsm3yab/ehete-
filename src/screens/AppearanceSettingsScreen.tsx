@@ -92,6 +92,69 @@ export default function AppearanceSettingsScreen({ navigation }: any) {
             {mode === 'light' && <Ionicons name="checkmark-circle" size={22} color={colors.accent} />}
           </Pressable>
         </View>
+
+        <SettingsSection title="Language" />
+        <View style={styles.options}>
+          <Pressable
+            style={[styles.option, prefs.language === 'en' && styles.optionActive]}
+            onPress={() => setPref('language', 'en')}
+          >
+            <View style={styles.iconWrap}>
+              <Ionicons
+                name="language"
+                size={22}
+                color={prefs.language === 'en' ? colors.accent : colors.textSecondary}
+              />
+            </View>
+            <View style={styles.optionBody}>
+              <Text style={styles.optionTitle}>English</Text>
+              <Text style={styles.optionSub}>App language in English</Text>
+            </View>
+            {prefs.language === 'en' && (
+              <Ionicons name="checkmark-circle" size={22} color={colors.accent} />
+            )}
+          </Pressable>
+
+          <Pressable
+            style={[styles.option, prefs.language === 'am' && styles.optionActive]}
+            onPress={() => setPref('language', 'am')}
+          >
+            <View style={styles.iconWrap}>
+              <Ionicons
+                name="language"
+                size={22}
+                color={prefs.language === 'am' ? colors.accent : colors.textSecondary}
+              />
+            </View>
+            <View style={styles.optionBody}>
+              <Text style={styles.optionTitle}>አማርኛ</Text>
+              <Text style={styles.optionSub}>Amharic language preference</Text>
+            </View>
+            {prefs.language === 'am' && (
+              <Ionicons name="checkmark-circle" size={22} color={colors.accent} />
+            )}
+          </Pressable>
+
+          <Pressable
+            style={[styles.option, prefs.language === 'om' && styles.optionActive]}
+            onPress={() => setPref('language', 'om')}
+          >
+            <View style={styles.iconWrap}>
+              <Ionicons
+                name="language"
+                size={22}
+                color={prefs.language === 'om' ? colors.accent : colors.textSecondary}
+              />
+            </View>
+            <View style={styles.optionBody}>
+              <Text style={styles.optionTitle}>Oromo</Text>
+              <Text style={styles.optionSub}>Oromo language preference</Text>
+            </View>
+            {prefs.language === 'om' && (
+              <Ionicons name="checkmark-circle" size={22} color={colors.accent} />
+            )}
+          </Pressable>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

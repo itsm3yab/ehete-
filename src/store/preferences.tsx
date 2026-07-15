@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_KEY = 'etete_prefs_v2';
 
 export type ThemeMode = 'dark' | 'light';
+export type AppLanguage = 'en' | 'am' | 'om';
 
 export type AppPreferences = {
   notifyReplies: boolean;
@@ -22,6 +23,7 @@ export type AppPreferences = {
   hideOnlineStatus: boolean;
   allowAnonymousReplies: boolean;
   themeMode: ThemeMode;
+  language: AppLanguage;
 };
 
 export const DEFAULT_PREFS: AppPreferences = {
@@ -33,9 +35,10 @@ export const DEFAULT_PREFS: AppPreferences = {
   hideOnlineStatus: false,
   allowAnonymousReplies: true,
   themeMode: 'light',
+  language: 'en',
 };
 
-type PrefValue = boolean | ThemeMode;
+type PrefValue = boolean | ThemeMode | AppLanguage;
 
 type PrefsContextValue = {
   prefs: AppPreferences;
@@ -60,6 +63,12 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
             ...DEFAULT_PREFS,
             ...parsed,
             themeMode: parsed.themeMode === 'dark' ? 'dark' : 'light',
+            language:
+              parsed.language === 'am'
+                ? 'am'
+                : parsed.language === 'om'
+                  ? 'om'
+                  : 'en',
           });
         }
       } catch {

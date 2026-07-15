@@ -50,7 +50,6 @@ export default function LoginScreen({ navigation }: any) {
         <View style={styles.iconWrap}>
           <Ionicons name="chatbubbles" size={40} color={colors.accent} />
         </View>
-        <Text style={styles.heading}>Welcome, Brother</Text>
         <Text style={styles.sub}>
           Sign in to share your story, connect with other men, and speak freely.
         </Text>
@@ -110,13 +109,6 @@ function makeLoginStyles(colors: ColorPalette) {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 28,
-  },
-  heading: {
-    fontSize: typography.xxl,
-    fontWeight: fontWeight.extrabold,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: 10,
   },
   sub: {
     fontSize: typography.base,

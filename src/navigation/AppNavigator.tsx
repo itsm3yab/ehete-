@@ -115,7 +115,7 @@ function TabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const { isDark } = useTheme();
-  const { translateY, showTabBar } = useTabBarScroll();
+  const { translateY, showTabBar, forceHidden } = useTabBarScroll();
   const [barWidth, setBarWidth] = useState(0);
   const lensX = useRef(new Animated.Value(0)).current;
   const lensScale = useRef(new Animated.Value(1)).current;
@@ -156,6 +156,9 @@ function TabBar({ state, descriptors, navigation }: any) {
   const onBarLayout = (e: LayoutChangeEvent) => {
     setBarWidth(e.nativeEvent.layout.width);
   };
+
+  // Fully remove tab bar on detail / compose screens so reply isn't covered
+  if (forceHidden) return null;
 
   return (
     <Animated.View

@@ -2,59 +2,123 @@ import React, { useRef, useState, useCallback } from 'react';
 import {
   Dimensions,
   FlatList,
-  Image,
   Pressable,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { CommonActions } from '@react-navigation/native';
+import { useApp } from '../store/AppContext';
+import { usePrefs, AppLanguage, ThemeMode } from '../store/preferences';
 import { typography, fontWeight, radius, useColors, ColorPalette } from '../store/theme';
 import { useThemedStyles } from '../store/useThemedStyles';
+import { hapticSelect } from '../utils/haptics';
 
 const { width } = Dimensions.get('window');
 const SWIPE_THRESHOLD = width * 0.3;
 
-const slides = [
+type Slide =
+  | {
+      id: string;
+      type: 'prefs';
+      title: string;
+      desc: string;
+    }
+  | {
+      id: string;
+      type: 'info';
+      icon: keyof typeof Ionicons.glyphMap;
+      title: string;
+      desc: string;
+    };
+
+const slides: Slide[] = [
+  {
+    id: '0',
+    type: 'prefs',
+    title: 'Make It Yours',
+    desc: 'Choose your language and theme first. You can change these later in settings.',
+  },
   {
     id: '1',
-    icon: 'chatbubbles',
-    title: 'Speak Your Mind',
-    desc: "Share what's weighing on you without holding back. No names, no judgment — just real talk between men.",
+    type: 'info',
+    icon: 'people',
+    title: 'Welcome, Brothers',
+    desc: 'This is a safe home for men and boys. Open up, lean on each other, and know you are never alone.',
   },
   {
     id: '2',
-    icon: 'shield-checkmark',
-    title: 'Your Truth Stays Here',
-    desc: 'Everything you post is 100% anonymous. No names, no traces — your secret stays with us.',
+    type: 'info',
+    icon: 'home',
+    title: 'Share Like Family',
+    desc: 'Talk about what is real. Pressure, love, school, money, pride, pain. No masks. No judgment. Just brothers.',
   },
   {
     id: '3',
-    icon: 'people',
-    title: 'Brothers in It Together',
-    desc: "Connect with other men who've walked the same path. Read, relate, and find strength in shared stories.",
+    type: 'info',
+    icon: 'shield-checkmark',
+    title: 'You Are Safe Here',
+    desc: 'Stay anonymous. No names, no pressure to perform. Post what you need to say and keep your privacy intact.',
   },
+  {
+    id: '4',
+    type: 'info',
+    icon: 'bar-chart',
+    title: 'Vote With Your Bros',
+    desc: 'Ask honest questions, cast your vote, and see what other men think. Real talk, real takes, no fake flex.',
+  },
+  {
+    id: '5',
+    type: 'info',
+    icon: 'heart',
+    title: 'Built For Us',
+    desc: 'From young guys finding their way to grown men carrying weight, this space is yours. Jump in when you are ready.',
+  },
+];
+
+const LANGUAGES: { id: AppLanguage; label: string }[] = [
+  { id: 'en', label: 'English' },
+  { id: 'am', label: 'አማርኛ' },
+  { id: 'om', label: 'Oromo' },
+];
+
+const THEMES: { id: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { id: 'light', label: 'Light', icon: 'sunny' },
+  { id: 'dark', label: 'Dark', icon: 'moon' },
 ];
 
 export default function WelcomeScreen({ navigation }: any) {
   const styles = useThemedStyles(makeWelcomeStyles);
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { dispatch } = useApp();
+  const { prefs, setPref } = usePrefs();
   const flatRef = useRef<FlatList>(null);
   const [index, setIndex] = useState(0);
   const touchStart = useRef(0);
 
   const isLast = index === slides.length - 1;
 
+  const goMain = useCallback(() => {
+    navigation.dispatch(
+      CommonActions.reset({ index: 0, routes: [{ name: 'Main' }] })
+    );
+  }, [navigation]);
+
   const handleNext = useCallback(() => {
     if (isLast) return;
     flatRef.current?.scrollToIndex({ index: index + 1, animated: true });
   }, [index, isLast]);
 
+  const handleGoogle = useCallback(() => {
+    dispatch({ type: 'LOGIN', payload: 'User' });
+    goMain();
+  }, [dispatch, goMain]);
+
   const handleGuest = useCallback(() => {
-    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-  }, [navigation]);
+    goMain();
+  }, [goMain]);
 
   const goToSlide = useCallback((i: number) => {
     flatRef.current?.scrollToIndex({ index: i, animated: true });
@@ -78,33 +142,93 @@ export default function WelcomeScreen({ navigation }: any) {
   );
 
   const renderSlide = useCallback(
-    ({ item }: any) => (
-      <View style={styles.slide}>
-        <View style={styles.iconWrap}>
-          <Ionicons name={item.icon} size={48} color={colors.accent} />
+    ({ item }: { item: Slide }) => {
+      if (item.type === 'prefs') {
+        return (
+          <View style={styles.slide}>
+            <View style={styles.iconWrap}>
+              <Ionicons name="options" size={44} color={colors.accent} />
+            </View>
+            <Text style={styles.slideTitle}>{item.title}</Text>
+            <Text style={styles.slideDesc}>{item.desc}</Text>
+
+            <View style={styles.prefsBlock}>
+              <Text style={styles.prefsLabel}>Language</Text>
+              <View style={styles.langRow}>
+                {LANGUAGES.map((lang) => {
+                  const active = prefs.language === lang.id;
+                  return (
+                    <Pressable
+                      key={lang.id}
+                      style={[styles.langChip, active && styles.choiceChipActive]}
+                      onPress={() => {
+                        hapticSelect();
+                        setPref('language', lang.id);
+                      }}
+                    >
+                      <Text
+                        style={[styles.choiceTitle, active && styles.choiceTitleActive]}
+                        numberOfLines={1}
+                      >
+                        {lang.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.prefsLabel}>Theme</Text>
+              <View style={styles.choiceRow}>
+                {THEMES.map((theme) => {
+                  const active = prefs.themeMode === theme.id;
+                  return (
+                    <Pressable
+                      key={theme.id}
+                      style={[styles.themeChip, active && styles.choiceChipActive]}
+                      onPress={() => {
+                        hapticSelect();
+                        setPref('themeMode', theme.id);
+                      }}
+                    >
+                      <Ionicons
+                        name={theme.icon}
+                        size={36}
+                        color={active ? colors.accent : colors.textSecondary}
+                      />
+                      <Text
+                        style={[styles.choiceTitle, active && styles.choiceTitleActive]}
+                      >
+                        {theme.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        );
+      }
+
+      return (
+        <View style={styles.slide}>
+          <View style={styles.iconWrap}>
+            <Ionicons name={item.icon} size={48} color={colors.accent} />
+          </View>
+          <Text style={styles.slideTitle}>{item.title}</Text>
+          <Text style={styles.slideDesc}>{item.desc}</Text>
         </View>
-        <Text style={styles.slideTitle}>{item.title}</Text>
-        <Text style={styles.slideDesc}>{item.desc}</Text>
-      </View>
-    ),
-    [styles, colors.accent]
+      );
+    },
+    [styles, colors.accent, colors.textSecondary, prefs.language, prefs.themeMode, setPref]
   );
 
-  const keyExtractor = useCallback((item: any) => item.id, []);
+  const keyExtractor = useCallback((item: Slide) => item.id, []);
 
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.bg }]}
       edges={['top', 'bottom']}
     >
-      <View style={[styles.topSection, { paddingTop: Math.max(insets.top > 0 ? 0 : 8, 8) }]}>
-        <Image
-          source={require('../../assets/icon.png')}
-          style={styles.brandIcon}
-          accessibilityLabel="etete"
-        />
-      </View>
-
       <FlatList
         ref={flatRef}
         data={slides}
@@ -145,7 +269,7 @@ export default function WelcomeScreen({ navigation }: any) {
           <View style={styles.actions}>
             <Pressable
               style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.85 }]}
-              onPress={() => navigation.navigate('Login')}
+              onPress={handleGoogle}
             >
               <Ionicons name="logo-google" size={20} color={colors.textPrimary} />
               <Text style={styles.googleBtnText}>Continue with Google</Text>
@@ -172,44 +296,96 @@ function makeWelcomeStyles(colors: ColorPalette) {
       backgroundColor: colors.bg,
       paddingBottom: 16,
     },
-    topSection: {
-      paddingHorizontal: 28,
-      paddingTop: 8,
-    },
-    brandIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: 12,
-    },
     slide: {
       width,
-      paddingHorizontal: 40,
+      paddingHorizontal: 28,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      paddingTop: 20,
+      paddingTop: 12,
     },
     iconWrap: {
-      width: 96,
-      height: 96,
+      width: 88,
+      height: 88,
       borderRadius: radius.xl,
       backgroundColor: colors.accentDim,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      marginBottom: 32,
+      marginBottom: 24,
     },
     slideTitle: {
       fontSize: typography.xxl,
       fontWeight: fontWeight.extrabold,
       color: colors.textPrimary,
       textAlign: 'center' as const,
-      marginBottom: 14,
+      marginBottom: 12,
     },
     slideDesc: {
       fontSize: typography.md,
       color: colors.textSecondary,
       textAlign: 'center' as const,
-      lineHeight: 26,
+      lineHeight: 24,
       paddingHorizontal: 8,
+    },
+    prefsBlock: {
+      width: '100%',
+      marginTop: 28,
+      gap: 12,
+    },
+    prefsLabel: {
+      color: colors.textSecondary,
+      fontSize: 12,
+      fontWeight: fontWeight.semibold,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase' as const,
+      marginTop: 6,
+    },
+    choiceRow: {
+      flexDirection: 'row' as const,
+      gap: 12,
+    },
+    langRow: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: 10,
+    },
+    langChip: {
+      width: '31%',
+      minHeight: 64,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingVertical: 18,
+      paddingHorizontal: 8,
+      borderRadius: radius.lg,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      backgroundColor: colors.bgElevated,
+    },
+    themeChip: {
+      flex: 1,
+      aspectRatio: 1,
+      maxHeight: 120,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 10,
+      paddingVertical: 16,
+      paddingHorizontal: 12,
+      borderRadius: 20,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      backgroundColor: colors.bgElevated,
+    },
+    choiceChipActive: {
+      borderColor: colors.accent,
+      backgroundColor: colors.accentDim,
+    },
+    choiceTitle: {
+      color: colors.textPrimary,
+      fontWeight: fontWeight.semibold,
+      fontSize: typography.base,
+    },
+    choiceTitleActive: {
+      color: colors.accent,
+      fontWeight: fontWeight.bold,
     },
     bottomSection: {
       paddingHorizontal: 28,

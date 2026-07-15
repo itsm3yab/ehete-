@@ -1,8 +1,8 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
-  Animated,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Share,
@@ -12,7 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../store/AppContext';
 import ReplyItem from '../components/ReplyItem';
@@ -22,17 +23,41 @@ import { Reply, Confession } from '../types';
 import { typography, fontWeight, radius, useColors, ColorPalette } from '../store/theme';
 import { useThemedStyles } from '../store/useThemedStyles';
 import { getCategoryTheme, formatCount, timeAgo, estimatedViews } from '../components/utils';
+import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 
 export default function DetailScreen({ route, navigation }: any) {
   const styles = useThemedStyles(makeDetailStyles);
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const { confession }: { confession: Confession } = route.params;
   const { state, dispatch } = useApp();
   const { requireAuth } = useAuthGate();
+  const { hideTabBar, showTabBar } = useTabBarScroll();
   const [replyText, setReplyText] = useState('');
   const [replyingTo, setReplyingTo] = useState<Reply | null>(null);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const scrollRef = useRef<FlatList>(null);
+
+  // Hide bottom nav so the composer sits flush above the keyboard (X-style)
+  useFocusEffect(
+    useCallback(() => {
+      hideTabBar();
+      return () => showTabBar();
+    }, [hideTabBar, showTabBar])
+  );
+
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = Keyboard.addListener(showEvt, () => setKeyboardOpen(true));
+    const onHide = Keyboard.addListener(hideEvt, () => setKeyboardOpen(false));
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
+  }, []);
+
 
   const current = state.confessions.find((c) => c.id === confession.id) ?? confession;
   const isUpvoted = state.upvotedIds.has(current.id);
@@ -229,7 +254,6 @@ export default function DetailScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Nav bar */}
       <View style={styles.navBar}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -244,8 +268,8 @@ export default function DetailScreen({ route, navigation }: any) {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
       >
         {state.isLoading ? (
           <>
@@ -264,13 +288,18 @@ export default function DetailScreen({ route, navigation }: any) {
               <ReplyItem reply={item} depth={0} onReplyPress={handleReplyPress} />
             )}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 8 }}
+            contentContainerStyle={{ paddingBottom: 16 }}
           />
         )}
 
-        {/* Reply composer */}
-        <View style={styles.composer}>
+        <View
+          style={[
+            styles.composer,
+            { paddingBottom: keyboardOpen ? 6 : Math.max(insets.bottom, 6) },
+          ]}
+        >
           {replyingTo && (
             <View style={styles.replyingBanner}>
               <Ionicons name="return-down-forward-outline" size={14} color={colors.accent} />
@@ -430,7 +459,6 @@ function makeDetailStyles(colors: ColorPalette) {
     borderTopWidth: 0.5,
     borderTopColor: colors.border,
     backgroundColor: colors.bgCard,
-    paddingBottom: Platform.OS === 'ios' ? 8 : 4,
   },
   replyingBanner: {
     flexDirection: 'row',
