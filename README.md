@@ -9,16 +9,13 @@ A safe space for women and girls to share what they've been holding inside.
 ## Features
 
 - **Welcome onboarding** — language (English, Amharic, Oromo), light/dark theme, and sister-focused intro slides
-- **Single sign-in** — Continue with Google on the last welcome slide (no separate login screen)
+- **Login & signup** — phone/username + password, with guest browsing
 - **Anonymous confessions** — share under a light identity, not your real name
-- **Feed** — browse posts with categories like Love/Cheating, Family, Work, Mental Health, and more
-- **Voting** — ask live questions, pick an end date, vote anonymously, and review closed results
-- **Full-screen Ask** — create polls with category, options, and calendar end date
-- **Sidebar** — profile, vote score, upvote/downvote totals, settings
+- **Feed** — browse posts with categories; top bar hides while scrolling
+- **Voting** — ask live questions, vote anonymously, review closed results
+- **Warn / Know him / Cycle / SOS** — safety tools in the bottom nav
+- **Sidebar** — voting, saves, settings, and edit profile
 - **Replies & threads** — leave support and nested replies on confessions
-- **Upvotes / downvotes** — surface what resonates with the community
-- **Search** — find confessions by topic or keyword
-- **Save & My Confessions** — keep posts close and revisit what you shared
 - **Guest mode** — browse without creating an account
 - **Theme/Language** — switch appearance and language in settings
 
