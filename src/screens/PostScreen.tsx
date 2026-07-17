@@ -1,55 +1,90 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
+  ActionSheetIOS,
   Alert,
+  FlatList,
   Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../store/AppContext';
 import { typography, fontWeight, radius, useColors, useTheme, ColorPalette } from '../store/theme';
 import { useThemedStyles } from '../store/useThemedStyles';
 import { getCategoryTheme } from '../components/utils';
+import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 import { CATEGORIES, Confession } from '../types';
 
+const StyleSheetHairline = Platform.OS === 'android' ? 1 : 0.5;
+
 const MAX_CHARS = 3000;
-const WARN_AT = 2700;
+const REDDIT_ORANGE = '#FF4500';
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
+
+const SELF_DESTRUCT_OPTIONS: { label: string; ms: number | null }[] = [
+  { label: 'Off', ms: null },
+  { label: '1 hour', ms: HOUR },
+  { label: '6 hours', ms: 6 * HOUR },
+  { label: '24 hours', ms: DAY },
+  { label: '3 days', ms: 3 * DAY },
+  { label: '7 days', ms: 7 * DAY },
+];
+
+type PostType = 'text' | 'image';
 
 export default function PostScreen({ navigation }: any) {
   const styles = useThemedStyles(makePostStyles);
   const colors = useColors();
   const { mode } = useTheme();
   const { state, dispatch } = useApp();
+  const { hideTabBar, showTabBar } = useTabBarScroll();
+
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
   const [category, setCategory] = useState<string>('Love/Cheating');
-  const [focused, setFocused] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [linkUrl, setLinkUrl] = useState<string | null>(null);
-  const [hasVoiceNote, setHasVoiceNote] = useState(false);
-  const [linkModal, setLinkModal] = useState(false);
-  const [linkDraft, setLinkDraft] = useState('');
+  const [selfDestructMs, setSelfDestructMs] = useState<number | null>(null);
+  const [postType, setPostType] = useState<PostType>('text');
+  const [communityOpen, setCommunityOpen] = useState(false);
+  const [destructOpen, setDestructOpen] = useState(false);
   const bodyRef = useRef<TextInput>(null);
 
-  const remaining = MAX_CHARS - text.length;
+  useFocusEffect(
+    useCallback(() => {
+      hideTabBar();
+      return () => showTabBar();
+    }, [hideTabBar, showTabBar])
+  );
+
   const isOverLimit = text.length > MAX_CHARS;
-  const isNearLimit = text.length >= WARN_AT;
-  const canPost = text.trim().length > 0 && !isOverLimit;
+  const hasTitle = title.trim().length > 0;
+  const hasContent =
+    postType === 'image' ? !!imageUri || text.trim().length > 0 : text.trim().length > 0 || !!imageUri;
+  const canPost = hasTitle && hasContent && !isOverLimit && !!category;
 
-  const progress = Math.min(text.length / MAX_CHARS, 1);
-  const barColor = isOverLimit ? colors.danger : isNearLimit ? colors.warning : colors.accent;
+  const catTheme = getCategoryTheme(category, mode);
+  const destructLabel =
+    SELF_DESTRUCT_OPTIONS.find((o) => o.ms === selfDestructMs)?.label ?? 'Off';
 
-  const pickImage = async () => {
+  const applyPickedAsset = (uri?: string) => {
+    if (uri) {
+      setImageUri(uri);
+      setPostType('image');
+    }
+  };
+
+  const pickFromLibrary = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       Alert.alert('Permission needed', 'Allow photo access to attach an image.');
@@ -57,85 +92,102 @@ export default function PostScreen({ navigation }: any) {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      quality: 0.8,
+      allowsEditing: true,
+      quality: 0.85,
+      exif: false,
     });
-    if (!result.canceled && result.assets[0]?.uri) {
-      setImageUri(result.assets[0].uri);
-    }
+    if (!result.canceled) applyPickedAsset(result.assets[0]?.uri);
   };
 
-  const openLinkModal = () => {
-    setLinkDraft(linkUrl ?? '');
-    setLinkModal(true);
-  };
-
-  const saveLink = () => {
-    const raw = linkDraft.trim();
-    if (!raw) {
-      setLinkUrl(null);
-      setLinkModal(false);
+  const takePhoto = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow camera access to take a photo.');
       return;
     }
-    const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-    setLinkUrl(url);
-    setLinkModal(false);
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 0.85,
+      exif: false,
+    });
+    if (!result.canceled) applyPickedAsset(result.assets[0]?.uri);
   };
 
-  const toggleVoice = () => {
-    if (hasVoiceNote) {
-      setHasVoiceNote(false);
+  const openImagePicker = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Photo library', 'Take photo', ...(imageUri ? ['Remove'] : [])],
+          cancelButtonIndex: 0,
+          destructiveButtonIndex: imageUri ? 3 : undefined,
+        },
+        (i) => {
+          if (i === 1) pickFromLibrary();
+          else if (i === 2) takePhoto();
+          else if (i === 3) setImageUri(null);
+        }
+      );
       return;
     }
-    setHasVoiceNote(true);
+    Alert.alert('Add image', undefined, [
+      { text: 'Library', onPress: pickFromLibrary },
+      { text: 'Camera', onPress: takePhoto },
+      ...(imageUri
+        ? [{ text: 'Remove', style: 'destructive' as const, onPress: () => setImageUri(null) }]
+        : []),
+      { text: 'Cancel', style: 'cancel' as const },
+    ]);
   };
 
   const handleSubmit = () => {
-    if (!text.trim()) {
-      Alert.alert('Empty confession', 'Write something before posting.');
+    if (!title.trim()) {
+      Alert.alert('Add a title', 'Titles help sisters find your confession.');
+      return;
+    }
+    if (!hasContent) {
+      Alert.alert('Empty post', 'Add text or an image before posting.');
       return;
     }
     if (isOverLimit) {
       Alert.alert('Too long', `Keep it under ${MAX_CHARS} characters.`);
       return;
     }
-    const confession: Confession = {
-      id: String(Date.now()),
-      title: title.trim(),
-      text: text.trim(),
-      category,
-      upvotes: 0,
-      downvotes: 0,
-      replyCount: 0,
-      timestamp: Date.now(),
-      authorId: state.username,
-      imageUri,
-      linkUrl,
-      hasVoiceNote,
-    };
-    dispatch({ type: 'ADD_CONFESSION', payload: confession });
+    const now = Date.now();
+    dispatch({
+      type: 'ADD_CONFESSION',
+      payload: {
+        id: String(now),
+        title: title.trim(),
+        text: text.trim(),
+        category,
+        upvotes: 0,
+        downvotes: 0,
+        replyCount: 0,
+        timestamp: now,
+        authorId: state.username,
+        imageUri: postType === 'image' || imageUri ? imageUri : null,
+        expiresAt: selfDestructMs != null ? now + selfDestructMs : null,
+      } as Confession,
+    });
     navigation.goBack();
   };
 
-  const catTheme = getCategoryTheme(category, mode);
-
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        {/* Reddit-style top bar */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             accessibilityLabel="Close"
           >
-            <Ionicons name="close" size={24} color={colors.textPrimary} />
+            <Ionicons name="close" size={26} color={colors.textPrimary} />
           </TouchableOpacity>
-
-          <View style={styles.headerCenter}>
-            <View style={[styles.catPill, { backgroundColor: catTheme.bg }]}>
-              <Text style={[styles.catPillText, { color: catTheme.text }]}>{category}</Text>
-            </View>
-          </View>
-
+          <Text style={styles.headerTitle}>New post</Text>
           <Pressable
             style={({ pressed }) => [
               styles.postBtn,
@@ -144,360 +196,437 @@ export default function PostScreen({ navigation }: any) {
             ]}
             onPress={handleSubmit}
             disabled={!canPost}
-            accessibilityRole="button"
-            accessibilityLabel="Post confession"
           >
             <Text style={[styles.postBtnText, !canPost && styles.postBtnTextDisabled]}>Post</Text>
           </Pressable>
         </View>
 
+        {/* Community selector — Reddit r/ style */}
+        <TouchableOpacity
+          style={styles.communityRow}
+          onPress={() => setCommunityOpen(true)}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.communityAvatar, { backgroundColor: catTheme.dot }]}>
+            <Text style={styles.communityAvatarText}>{category.charAt(0)}</Text>
+          </View>
+          <View style={styles.communityMeta}>
+            <Text style={styles.communityLabel}>Select a community</Text>
+            <Text style={styles.communityName} numberOfLines={1}>
+              r/{category.replace(/\s+/g, '')}
+            </Text>
+          </View>
+          <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
+        </TouchableOpacity>
+
+        {/* Post type tabs — Reddit style */}
+        <View style={styles.typeTabs}>
+          {(
+            [
+              { id: 'text' as const, label: 'Post', icon: 'document-text-outline' },
+              { id: 'image' as const, label: 'Image', icon: 'image-outline' },
+            ] as const
+          ).map((t) => {
+            const active = postType === t.id;
+            return (
+              <TouchableOpacity
+                key={t.id}
+                style={[styles.typeTab, active && styles.typeTabActive]}
+                onPress={() => {
+                  setPostType(t.id);
+                  if (t.id === 'image' && !imageUri) openImagePicker();
+                }}
+              >
+                <Ionicons
+                  name={t.icon}
+                  size={16}
+                  color={active ? REDDIT_ORANGE : colors.textSecondary}
+                />
+                <Text style={[styles.typeTabText, active && styles.typeTabTextActive]}>
+                  {t.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         <ScrollView
+          style={{ flex: 1 }}
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.composeRow}>
-            <View style={styles.authorAvatar}>
-              <Text style={styles.authorAvatarText}>
-                {(state.username || 'A').charAt(0).toUpperCase()}
-              </Text>
-            </View>
-            <View style={styles.inputs}>
-              <TextInput
-                style={[styles.titleInput, focused === 'title' && styles.titleInputFocused]}
-                placeholder="Add a title... (optional)"
-                placeholderTextColor={colors.textMeta}
-                value={title}
-                onChangeText={setTitle}
-                onFocus={() => setFocused('title')}
-                onBlur={() => setFocused(null)}
-                maxLength={120}
-              />
-              <TextInput
-                ref={bodyRef}
-                style={styles.bodyInput}
-                placeholder="What's weighing on you?"
-                placeholderTextColor={colors.textMeta}
-                value={text}
-                onChangeText={setText}
-                onFocus={() => setFocused('body')}
-                onBlur={() => setFocused(null)}
-                multiline
-                textAlignVertical="top"
-              />
-            </View>
-          </View>
+          <TextInput
+            style={styles.titleInput}
+            placeholder="Title"
+            placeholderTextColor={colors.textMeta}
+            value={title}
+            onChangeText={setTitle}
+            maxLength={120}
+          />
+          <View style={styles.titleRule} />
 
-          {(imageUri || linkUrl || hasVoiceNote) && (
-            <View style={styles.attachPreview}>
+          {postType === 'image' && (
+            <View style={styles.imageBlock}>
               {imageUri ? (
-                <View style={styles.previewItem}>
-                  <Image source={{ uri: imageUri }} style={styles.previewImage} />
+                <View style={styles.imageWrap}>
+                  <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="cover" />
                   <TouchableOpacity style={styles.removeChip} onPress={() => setImageUri(null)}>
-                    <Ionicons name="close" size={14} color="#fff" />
+                    <Ionicons name="close" size={16} color="#fff" />
                   </TouchableOpacity>
                 </View>
-              ) : null}
-              {linkUrl ? (
-                <View style={styles.linkChip}>
-                  <Ionicons name="link" size={14} color={colors.accent} />
-                  <Text style={styles.linkChipText} numberOfLines={1}>{linkUrl}</Text>
-                  <TouchableOpacity onPress={() => setLinkUrl(null)}>
-                    <Ionicons name="close" size={14} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
-              ) : null}
-              {hasVoiceNote ? (
-                <View style={styles.linkChip}>
-                  <Ionicons name="mic" size={14} color={colors.accent} />
-                  <Text style={styles.linkChipText}>Voice note attached</Text>
-                  <TouchableOpacity onPress={() => setHasVoiceNote(false)}>
-                    <Ionicons name="close" size={14} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
-              ) : null}
+              ) : (
+                <TouchableOpacity style={styles.imageEmpty} onPress={openImagePicker}>
+                  <Ionicons name="image-outline" size={36} color={colors.textMeta} />
+                  <Text style={styles.imageEmptyText}>Tap to add an image</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
-          <View style={styles.progressRow}>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: barColor }]} />
-            </View>
-            <Text style={[styles.charCount, isNearLimit && { color: barColor }]}>{remaining}</Text>
-          </View>
+          <TextInput
+            ref={bodyRef}
+            style={styles.bodyInput}
+            placeholder="body text (optional)"
+            placeholderTextColor={colors.textMeta}
+            value={text}
+            onChangeText={setText}
+            multiline
+            textAlignVertical="top"
+          />
 
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Category</Text>
-            <View style={styles.chipsGrid}>
-              {CATEGORIES.map((cat) => {
-                const active = category === cat;
-                const t = getCategoryTheme(cat, mode);
-                return (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[
-                      styles.chip,
-                      { borderColor: colors.border },
-                      active && { backgroundColor: t.bg, borderColor: t.dot },
-                    ]}
-                    onPress={() => setCategory(cat)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: active }}
-                    accessibilityLabel={cat}
-                  >
-                    {active && <View style={[styles.chipDot, { backgroundColor: t.dot }]} />}
-                    <Text style={[styles.chipText, active && { color: t.text, fontWeight: fontWeight.semibold }]}>
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          <View style={styles.attachBar}>
-            <TouchableOpacity style={styles.attachBtn} onPress={pickImage}>
-              <Ionicons name="image-outline" size={20} color={imageUri ? colors.accent : colors.textSecondary} />
-              <Text style={[styles.attachText, !!imageUri && { color: colors.accent }]}>Image</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.attachBtn} onPress={toggleVoice}>
-              <Ionicons name="mic-outline" size={20} color={hasVoiceNote ? colors.accent : colors.textSecondary} />
-              <Text style={[styles.attachText, hasVoiceNote && { color: colors.accent }]}>Voice</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.attachBtn} onPress={openLinkModal}>
-              <Ionicons name="link-outline" size={20} color={linkUrl ? colors.accent : colors.textSecondary} />
-              <Text style={[styles.attachText, !!linkUrl && { color: colors.accent }]}>Link</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.anonNotice}>
-            <Ionicons name="shield-checkmark-outline" size={15} color={colors.success} />
-            <Text style={styles.anonText}>Posted anonymously. Your identity is never revealed.</Text>
-          </View>
+          <TouchableOpacity style={styles.optionRow} onPress={() => setDestructOpen(true)}>
+            <Ionicons name="timer-outline" size={18} color={colors.textSecondary} />
+            <Text style={styles.optionLabel}>Self-destruct</Text>
+            <Text style={styles.optionValue}>{destructLabel}</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMeta} />
+          </TouchableOpacity>
         </ScrollView>
+
+        {/* Reddit bottom toolbar */}
+        <View style={styles.toolbar}>
+          <TouchableOpacity style={styles.toolBtn} onPress={openImagePicker}>
+            <Ionicons name="image-outline" size={22} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.toolBtn} onPress={() => bodyRef.current?.focus()}>
+            <Ionicons name="text-outline" size={22} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.toolBtn} onPress={() => setCommunityOpen(true)}>
+            <Ionicons name="people-outline" size={22} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }} />
+          <Text style={[styles.charHint, isOverLimit && { color: colors.danger }]}>
+            {MAX_CHARS - text.length}
+          </Text>
+        </View>
       </KeyboardAvoidingView>
 
-      <Modal visible={linkModal} transparent animationType="fade" onRequestClose={() => setLinkModal(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Add a link</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="https://example.com"
-              placeholderTextColor={colors.textMeta}
-              value={linkDraft}
-              onChangeText={setLinkDraft}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity onPress={() => setLinkModal(false)}>
-                <Text style={styles.modalCancel}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalSave} onPress={saveLink}>
-                <Text style={styles.modalSaveText}>Save</Text>
-              </TouchableOpacity>
-            </View>
+      {/* Community picker */}
+      <Modal visible={communityOpen} animationType="slide" onRequestClose={() => setCommunityOpen(false)}>
+        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+          <View style={styles.sheetHeader}>
+            <TouchableOpacity onPress={() => setCommunityOpen(false)}>
+              <Ionicons name="close" size={24} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.sheetTitle}>Select a community</Text>
+            <View style={{ width: 24 }} />
           </View>
-        </View>
+          <FlatList
+            data={[...CATEGORIES]}
+            keyExtractor={(c) => c}
+            contentContainerStyle={{ padding: 12, gap: 4 }}
+            renderItem={({ item }) => {
+              const t = getCategoryTheme(item, mode);
+              const active = category === item;
+              return (
+                <TouchableOpacity
+                  style={[styles.communityItem, active && styles.communityItemActive]}
+                  onPress={() => {
+                    setCategory(item);
+                    setCommunityOpen(false);
+                  }}
+                >
+                  <View style={[styles.communityAvatar, { backgroundColor: t.dot }]}>
+                    <Text style={styles.communityAvatarText}>{item.charAt(0)}</Text>
+                  </View>
+                  <Text style={styles.communityItemName}>r/{item.replace(/\s+/g, '')}</Text>
+                  {active && <Ionicons name="checkmark-circle" size={20} color={REDDIT_ORANGE} />}
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </SafeAreaView>
+      </Modal>
+
+      {/* Self-destruct picker */}
+      <Modal visible={destructOpen} transparent animationType="fade" onRequestClose={() => setDestructOpen(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setDestructOpen(false)}>
+          <View style={styles.sheetCard}>
+            <Text style={styles.sheetCardTitle}>Self-destruct</Text>
+            {SELF_DESTRUCT_OPTIONS.map((opt) => {
+              const active = selfDestructMs === opt.ms;
+              return (
+                <TouchableOpacity
+                  key={opt.label}
+                  style={styles.sheetOption}
+                  onPress={() => {
+                    setSelfDestructMs(opt.ms);
+                    setDestructOpen(false);
+                  }}
+                >
+                  <Text style={[styles.sheetOptionText, active && { color: REDDIT_ORANGE }]}>
+                    {opt.label}
+                  </Text>
+                  {active && <Ionicons name="checkmark" size={18} color={REDDIT_ORANGE} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );
 }
 
-
-
 function makePostStyles(colors: ColorPalette) {
   return {
-  container: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.border,
-  },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  catPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: radius.full,
-  },
-  catPillText: { fontSize: typography.xs, fontWeight: fontWeight.semibold },
-  postBtn: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-  },
-  postBtnDisabled: { backgroundColor: colors.bgElevated },
-  postBtnText: { color: '#fff', fontWeight: fontWeight.bold, fontSize: typography.sm },
-  postBtnTextDisabled: { color: colors.textMeta },
-  scroll: { padding: 16, gap: 20 },
-  composeRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
-  authorAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    marginTop: 2,
-  },
-  authorAvatarText: { color: '#fff', fontWeight: fontWeight.bold, fontSize: typography.base },
-  inputs: { flex: 1, gap: 10 },
-  titleInput: {
-    color: colors.textPrimary,
-    fontSize: typography.lg,
-    fontWeight: fontWeight.semibold,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.borderSubtle,
-    paddingBottom: 8,
-  },
-  titleInputFocused: { borderBottomColor: colors.accent },
-  bodyInput: {
-    color: colors.textPrimary,
-    fontSize: typography.base,
-    lineHeight: 24,
-    minHeight: 140,
-  },
-  attachPreview: { gap: 10 },
-  previewItem: { position: 'relative', alignSelf: 'flex-start' },
-  previewImage: { width: 120, height: 120, borderRadius: radius.md },
-  removeChip: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  linkChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.bgElevated,
-    borderRadius: radius.full,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  linkChipText: { flex: 1, color: colors.textSecondary, fontSize: typography.xs },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  progressTrack: {
-    flex: 1,
-    height: 3,
-    backgroundColor: colors.bgElevated,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: { height: '100%', borderRadius: 2 },
-  charCount: {
-    color: colors.textMeta,
-    fontSize: typography.xs,
-    fontWeight: fontWeight.medium,
-    minWidth: 32,
-    textAlign: 'right',
-  },
-  section: { gap: 10 },
-  sectionLabel: {
-    color: colors.textSecondary,
-    fontSize: typography.xs,
-    fontWeight: fontWeight.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  chipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderWidth: 1,
-    borderRadius: radius.full,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  chipDot: { width: 6, height: 6, borderRadius: 3 },
-  chipText: { color: colors.textSecondary, fontSize: typography.xs },
-  attachBar: {
-    flexDirection: 'row',
-    gap: 4,
-    paddingTop: 12,
-    borderTopWidth: 0.5,
-    borderTopColor: colors.border,
-  },
-  attachBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: radius.md,
-    backgroundColor: colors.bgElevated,
-  },
-  attachText: { color: colors.textSecondary, fontSize: typography.xs, fontWeight: fontWeight.medium },
-  anonNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    backgroundColor: colors.successDim,
-    borderRadius: radius.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  anonText: { color: colors.success, fontSize: typography.xs, flex: 1, lineHeight: 18 },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-  },
-  modalCard: {
-    backgroundColor: colors.bgElevated,
-    borderRadius: radius.lg,
-    padding: 18,
-    gap: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  modalTitle: {
-    color: colors.textPrimary,
-    fontWeight: fontWeight.bold,
-    fontSize: typography.base,
-  },
-  modalInput: {
-    backgroundColor: colors.bgInput,
-    borderRadius: radius.md,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    color: colors.textPrimary,
-    fontSize: typography.sm,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: 16,
-  },
-  modalCancel: { color: colors.textSecondary, fontSize: typography.sm },
-  modalSave: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-  },
-  modalSaveText: { color: '#fff', fontWeight: fontWeight.bold, fontSize: typography.sm },
-};
+    container: { flex: 1, backgroundColor: colors.bg },
+    header: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      gap: 12,
+      borderBottomWidth: 0.5,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      flex: 1,
+      color: colors.textPrimary,
+      fontSize: typography.base,
+      fontWeight: fontWeight.bold,
+    },
+    postBtn: {
+      backgroundColor: REDDIT_ORANGE,
+      paddingHorizontal: 16,
+      paddingVertical: 7,
+      borderRadius: radius.full,
+      minWidth: 64,
+      alignItems: 'center' as const,
+    },
+    postBtnDisabled: { backgroundColor: colors.bgElevated },
+    postBtnText: { color: '#fff', fontWeight: fontWeight.bold, fontSize: typography.sm },
+    postBtnTextDisabled: { color: colors.textMeta },
+    communityRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderBottomWidth: 0.5,
+      borderBottomColor: colors.border,
+    },
+    communityAvatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    communityAvatarText: {
+      color: '#fff',
+      fontWeight: fontWeight.bold,
+      fontSize: typography.sm,
+    },
+    communityMeta: { flex: 1 },
+    communityLabel: {
+      color: colors.textMeta,
+      fontSize: 11,
+    },
+    communityName: {
+      color: colors.textPrimary,
+      fontWeight: fontWeight.semibold,
+      fontSize: typography.sm,
+      marginTop: 1,
+    },
+    typeTabs: {
+      flexDirection: 'row' as const,
+      paddingHorizontal: 8,
+      borderBottomWidth: 0.5,
+      borderBottomColor: colors.border,
+    },
+    typeTab: {
+      flex: 1,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 6,
+      paddingVertical: 12,
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
+    },
+    typeTabActive: { borderBottomColor: REDDIT_ORANGE },
+    typeTabText: {
+      color: colors.textSecondary,
+      fontSize: typography.sm,
+      fontWeight: fontWeight.medium,
+    },
+    typeTabTextActive: { color: REDDIT_ORANGE, fontWeight: fontWeight.bold },
+    scroll: { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 24 },
+    titleInput: {
+      color: colors.textPrimary,
+      fontSize: 20,
+      fontWeight: fontWeight.bold,
+      paddingVertical: 12,
+    },
+    titleRule: {
+      height: StyleSheetHairline,
+      backgroundColor: colors.border,
+      marginBottom: 8,
+    },
+    bodyInput: {
+      color: colors.textPrimary,
+      fontSize: typography.base,
+      lineHeight: 22,
+      minHeight: 140,
+      paddingVertical: 8,
+    },
+    imageBlock: { marginBottom: 12 },
+    imageWrap: {
+      position: 'relative' as const,
+      borderRadius: radius.md,
+      overflow: 'hidden' as const,
+    },
+    previewImage: {
+      width: '100%' as const,
+      height: 220,
+      backgroundColor: colors.bgElevated,
+    },
+    removeChip: {
+      position: 'absolute' as const,
+      top: 10,
+      right: 10,
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: 'rgba(0,0,0,0.65)',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    imageEmpty: {
+      height: 160,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderStyle: 'dashed' as const,
+      borderColor: colors.border,
+      backgroundColor: colors.bgElevated,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 8,
+    },
+    imageEmptyText: { color: colors.textMeta, fontSize: typography.sm },
+    optionRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 10,
+      marginTop: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      borderRadius: radius.md,
+      backgroundColor: colors.bgElevated,
+      borderWidth: 0.5,
+      borderColor: colors.border,
+    },
+    optionLabel: {
+      flex: 1,
+      color: colors.textPrimary,
+      fontSize: typography.sm,
+      fontWeight: fontWeight.medium,
+    },
+    optionValue: {
+      color: colors.textSecondary,
+      fontSize: typography.xs,
+      marginRight: 2,
+    },
+    toolbar: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      borderTopWidth: 0.5,
+      borderTopColor: colors.border,
+      backgroundColor: colors.bg,
+    },
+    toolBtn: {
+      width: 40,
+      height: 40,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      borderRadius: 20,
+    },
+    charHint: {
+      color: colors.textMeta,
+      fontSize: typography.xs,
+      paddingHorizontal: 8,
+    },
+    sheetHeader: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 0.5,
+      borderBottomColor: colors.border,
+    },
+    sheetTitle: {
+      color: colors.textPrimary,
+      fontWeight: fontWeight.bold,
+      fontSize: typography.base,
+    },
+    communityItem: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 10,
+      borderRadius: radius.md,
+    },
+    communityItemActive: { backgroundColor: colors.bgElevated },
+    communityItemName: {
+      flex: 1,
+      color: colors.textPrimary,
+      fontSize: typography.sm,
+      fontWeight: fontWeight.semibold,
+    },
+    sheetBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'flex-end' as const,
+    },
+    sheetCard: {
+      backgroundColor: colors.bgElevated,
+      borderTopLeftRadius: radius.lg,
+      borderTopRightRadius: radius.lg,
+      padding: 16,
+      paddingBottom: 28,
+      gap: 2,
+    },
+    sheetCardTitle: {
+      color: colors.textPrimary,
+      fontWeight: fontWeight.bold,
+      fontSize: typography.base,
+      marginBottom: 8,
+    },
+    sheetOption: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      paddingVertical: 14,
+    },
+    sheetOptionText: {
+      color: colors.textPrimary,
+      fontSize: typography.sm,
+    },
+  };
 }

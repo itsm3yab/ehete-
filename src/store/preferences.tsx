@@ -12,7 +12,7 @@ import React, {
 import { InteractionManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const STORAGE_KEY = 'etete_prefs_v2';
+const STORAGE_KEY = 'ehete_prefs_v2';
 
 export type ThemeMode = 'dark' | 'light';
 export type AppLanguage = 'en' | 'am' | 'om';
@@ -25,6 +25,7 @@ export type AppPreferences = {
   privateProfile: boolean;
   hideOnlineStatus: boolean;
   allowAnonymousReplies: boolean;
+  preventScreenshots: boolean;
   themeMode: ThemeMode;
   language: AppLanguage;
 };
@@ -37,6 +38,7 @@ export const DEFAULT_PREFS: AppPreferences = {
   privateProfile: false,
   hideOnlineStatus: false,
   allowAnonymousReplies: true,
+  preventScreenshots: true,
   themeMode: 'light',
   language: 'en',
 };
@@ -57,6 +59,10 @@ function normalizePrefs(raw: Partial<AppPreferences> | null | undefined): AppPre
   return {
     ...DEFAULT_PREFS,
     ...parsed,
+    preventScreenshots:
+      typeof parsed.preventScreenshots === 'boolean'
+        ? parsed.preventScreenshots
+        : DEFAULT_PREFS.preventScreenshots,
     themeMode: parsed.themeMode === 'dark' ? 'dark' : 'light',
     language:
       parsed.language === 'am' ? 'am' : parsed.language === 'om' ? 'om' : 'en',

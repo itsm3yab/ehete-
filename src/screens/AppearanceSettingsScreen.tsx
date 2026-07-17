@@ -23,7 +23,7 @@ export default function AppearanceSettingsScreen({ navigation }: any) {
         removeClippedSubviews
       >
         <Text style={styles.intro}>
-          Choose how etete looks and which language you prefer.
+          Choose how ehete looks and which language you prefer.
         </Text>
 
         <SettingsSection title="Theme" />

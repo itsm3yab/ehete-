@@ -57,7 +57,7 @@ export default function NotificationsSettingsScreen({ navigation }: any) {
           <SettingsToggle
             icon="megaphone-outline"
             label="Announcements"
-            description="News and feature updates from etete"
+            description="News and feature updates from ehete"
             value={prefs.notifyAnnouncements}
             onValueChange={(v) => setPref('notifyAnnouncements', v)}
           />

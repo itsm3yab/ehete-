@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   Dimensions,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -24,8 +25,7 @@ import {
   ColorPalette,
 } from '../store/theme';
 import { useThemedStyles } from '../store/useThemedStyles';
-import { CATEGORIES } from '../types';
-import { getCategoryTheme, formatCount, getUserSidebarStats } from './utils';
+import { formatCount, getUserSidebarStats } from './utils';
 import { navigationRef, goToSignIn } from '../navigation/navigationRef';
 import { hapticSelect } from '../utils/haptics';
 import SignOutModal from './SignOutModal';
@@ -41,6 +41,10 @@ type Props = {
 function openScreen(navigation: any, screen: string) {
   const parent = navigation?.getParent?.();
   const routeNames: string[] | undefined = parent?.getState?.()?.routeNames;
+  if (routeNames?.includes(screen)) {
+    parent.navigate(screen);
+    return;
+  }
   if (routeNames?.includes('Feed')) {
     parent.navigate('Feed', { screen });
     return;
@@ -51,6 +55,8 @@ function openScreen(navigation: any, screen: string) {
 function DrawerRow({
   icon,
   label,
+  meta,
+  badge,
   onPress,
   compact,
   danger,
@@ -59,6 +65,8 @@ function DrawerRow({
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  meta?: string;
+  badge?: string | number;
   onPress: () => void;
   compact?: boolean;
   danger?: boolean;
@@ -81,15 +89,25 @@ function DrawerRow({
         size={compact ? 22 : 26}
         color={danger ? colors.danger : colors.textPrimary}
       />
-      <Text
-        style={[
-          styles.xRowLabel,
-          compact && styles.xRowLabelCompact,
-          danger && { color: colors.danger },
-        ]}
-      >
-        {label}
-      </Text>
+      <View style={styles.xRowTextCol}>
+        <Text
+          style={[
+            styles.xRowLabel,
+            compact && styles.xRowLabelCompact,
+            danger && { color: colors.danger },
+          ]}
+        >
+          {label}
+        </Text>
+        {!!meta && <Text style={styles.xRowMeta}>{meta}</Text>}
+      </View>
+      {badge != null && badge !== '' && (
+        <View style={[styles.xRowBadge, danger && { backgroundColor: colors.dangerDim }]}>
+          <Text style={[styles.xRowBadgeText, danger && { color: colors.danger }]}>
+            {badge}
+          </Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -98,10 +116,12 @@ export function DrawerAvatarButton({
   onPress,
   initial,
   isGuest,
+  avatarUri,
 }: {
   onPress: () => void;
   initial: string;
   isGuest: boolean;
+  avatarUri?: string | null;
 }) {
   const styles = useThemedStyles(makeAvatarStyles);
   return (
@@ -113,11 +133,15 @@ export function DrawerAvatarButton({
       accessibilityRole="button"
       activeOpacity={0.7}
     >
-      <View style={[styles.navAvatar, isGuest && styles.navAvatarGuest]}>
-        <Text style={[styles.navAvatarText, isGuest && styles.navAvatarGuestText]}>
-          {initial}
-        </Text>
-      </View>
+      {avatarUri && !isGuest ? (
+        <Image source={{ uri: avatarUri }} style={styles.navAvatarImg} />
+      ) : (
+        <View style={[styles.navAvatar, isGuest && styles.navAvatarGuest]}>
+          <Text style={[styles.navAvatarText, isGuest && styles.navAvatarGuestText]}>
+            {initial}
+          </Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -125,11 +149,10 @@ export function DrawerAvatarButton({
 export default function SideDrawer({ visible, onClose, navigation }: Props) {
   const styles = useThemedStyles(makeDrawerStyles);
   const colors = useColors();
-  const { mode, isDark } = useTheme();
+  const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const { state, dispatch } = useApp();
   const { requireAuth } = useAuthGate();
-  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
 
   const isGuest = !state.isLoggedIn;
@@ -216,16 +239,15 @@ export default function SideDrawer({ visible, onClose, navigation }: Props) {
           >
             <View style={styles.xHeader}>
               <View style={styles.xHeaderTop}>
-                <TouchableOpacity
-                  onPress={() => go(() => openScreen(navigation, 'Profile'))}
-                  activeOpacity={0.85}
-                >
+                {state.avatarUri && !isGuest ? (
+                  <Image source={{ uri: state.avatarUri }} style={styles.xAvatarImg} />
+                ) : (
                   <View style={[styles.xAvatar, isGuest && styles.xAvatarGuest]}>
                     <Text style={[styles.xAvatarText, isGuest && styles.xAvatarGuestText]}>
                       {initial}
                     </Text>
                   </View>
-                </TouchableOpacity>
+                )}
                 <View style={styles.xHeaderMeta}>
                   <Text style={styles.xDisplayName} numberOfLines={1}>
                     {displayName}
@@ -234,6 +256,23 @@ export default function SideDrawer({ visible, onClose, navigation }: Props) {
                     {handle}
                   </Text>
                 </View>
+                <TouchableOpacity
+                  style={styles.editBtn}
+                  onPress={() => {
+                    hapticSelect();
+                    if (isGuest) {
+                      openAuthed('EditProfile', 'Sign in to edit your profile.');
+                      return;
+                    }
+                    go(() => openScreen(navigation, 'EditProfile'));
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit profile"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="create-outline" size={18} color={colors.textPrimary} />
+                  <Text style={styles.editBtnText}>Edit</Text>
+                </TouchableOpacity>
               </View>
 
               <View style={styles.statsRow}>
@@ -272,13 +311,6 @@ export default function SideDrawer({ visible, onClose, navigation }: Props) {
               <DrawerRow
                 colors={colors}
                 styles={styles}
-                icon="person-outline"
-                label="Profile"
-                onPress={() => go(() => openScreen(navigation, 'Profile'))}
-              />
-              <DrawerRow
-                colors={colors}
-                styles={styles}
                 icon="document-text-outline"
                 label="My Confessions"
                 onPress={() =>
@@ -292,67 +324,13 @@ export default function SideDrawer({ visible, onClose, navigation }: Props) {
                 label="Saved"
                 onPress={() => openAuthed('Saved', 'Sign in to view saved posts.')}
               />
-              <TouchableOpacity
-                style={styles.xRow}
-                onPress={() => setCategoriesOpen((v) => !v)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="grid-outline" size={26} color={colors.textPrimary} />
-                <Text style={styles.xRowLabel}>Categories</Text>
-                <Ionicons
-                  name={categoriesOpen ? 'chevron-up' : 'chevron-down'}
-                  size={18}
-                  color={colors.textSecondary}
-                  style={{ marginLeft: 'auto' }}
-                />
-              </TouchableOpacity>
-
-              {categoriesOpen && (
-                <View style={styles.listsBlock}>
-                  <TouchableOpacity
-                    style={[
-                      styles.listItem,
-                      !state.selectedCategory && styles.listItemActive,
-                    ]}
-                    onPress={() =>
-                      go(() => dispatch({ type: 'SET_CATEGORY', payload: null }))
-                    }
-                  >
-                    <View style={[styles.listDot, { backgroundColor: colors.accent }]} />
-                    <Text
-                      style={[
-                        styles.listItemText,
-                        !state.selectedCategory && styles.listItemTextActive,
-                      ]}
-                    >
-                      All Confessions
-                    </Text>
-                  </TouchableOpacity>
-                  {CATEGORIES.map((cat) => {
-                    const theme = getCategoryTheme(cat, mode);
-                    const active = state.selectedCategory === cat;
-                    return (
-                      <TouchableOpacity
-                        key={cat}
-                        style={[styles.listItem, active && styles.listItemActive]}
-                        onPress={() =>
-                          go(() => dispatch({ type: 'SET_CATEGORY', payload: cat }))
-                        }
-                      >
-                        <View style={[styles.listDot, { backgroundColor: theme.dot }]} />
-                        <Text
-                          style={[
-                            styles.listItemText,
-                            active && styles.listItemTextActive,
-                          ]}
-                        >
-                          {cat}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
+              <DrawerRow
+                colors={colors}
+                styles={styles}
+                icon="bar-chart-outline"
+                label="Voting"
+                onPress={() => go(() => openScreen(navigation, 'Voting'))}
+              />
             </View>
 
             <View style={styles.xHairline} />
@@ -363,8 +341,8 @@ export default function SideDrawer({ visible, onClose, navigation }: Props) {
                 compact
                 colors={colors}
                 styles={styles}
-                icon="notifications-outline"
-                label="Notifications"
+                icon="options-outline"
+                label="Notification settings"
                 onPress={() =>
                   go(() => openScreen(navigation, 'NotificationsSettings'))
                 }
@@ -398,7 +376,7 @@ export default function SideDrawer({ visible, onClose, navigation }: Props) {
                 colors={colors}
                 styles={styles}
                 icon="information-circle-outline"
-                label="About Etete"
+                label="About እህቴ"
                 onPress={() => go(() => openScreen(navigation, 'About'))}
               />
             </View>
@@ -454,8 +432,13 @@ function makeAvatarStyles(colors: ColorPalette) {
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     },
+    navAvatarImg: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+    },
     navAvatarGuest: {
-      backgroundColor: colors.bgElevated,
+      backgroundColor: '#ffffff',
       borderWidth: 1,
       borderColor: colors.border,
     },
@@ -511,6 +494,11 @@ function makeDrawerStyles(colors: ColorPalette) {
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     },
+    xAvatarImg: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+    },
     xAvatarGuest: {
       backgroundColor: colors.bgElevated,
       borderWidth: 1,
@@ -538,6 +526,23 @@ function makeDrawerStyles(colors: ColorPalette) {
     xHandle: {
       color: colors.textSecondary,
       fontSize: 14,
+    },
+    editBtn: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 4,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: radius.full,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      backgroundColor: colors.bgElevated,
+      flexShrink: 0,
+    },
+    editBtnText: {
+      color: colors.textPrimary,
+      fontSize: 13,
+      fontWeight: fontWeight.semibold,
     },
     statsRow: {
       flexDirection: 'row' as const,
@@ -609,6 +614,10 @@ function makeDrawerStyles(colors: ColorPalette) {
       paddingVertical: 11,
       gap: 12,
     },
+    xRowTextCol: {
+      flex: 1,
+      gap: 2,
+    },
     xRowLabel: {
       color: colors.textPrimary,
       fontSize: 20,
@@ -618,6 +627,25 @@ function makeDrawerStyles(colors: ColorPalette) {
     xRowLabelCompact: {
       fontSize: 17,
       fontWeight: fontWeight.semibold,
+    },
+    xRowMeta: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      fontWeight: fontWeight.medium,
+    },
+    xRowBadge: {
+      minWidth: 24,
+      height: 24,
+      paddingHorizontal: 7,
+      borderRadius: 12,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      backgroundColor: colors.accentDim,
+    },
+    xRowBadgeText: {
+      color: colors.accent,
+      fontSize: 12,
+      fontWeight: fontWeight.bold,
     },
     listsBlock: {
       paddingLeft: 10,

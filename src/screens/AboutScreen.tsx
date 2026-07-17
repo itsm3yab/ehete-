@@ -24,9 +24,9 @@ export default function AboutScreen({ navigation }: any) {
           <View style={styles.logo}>
             <Ionicons name="chatbubbles" size={32} color={colors.accent} />
           </View>
-          <Text style={styles.name}>etete</Text>
+          <Text style={styles.name}>እህቴ</Text>
           <Text style={styles.tagline}>
-            A safe space for men and boys to share what they've been holding inside.
+            A safe space for women and girls to share what they've been holding inside.
           </Text>
           <View style={styles.versionPill}>
             <Text style={styles.version}>Version 1.0.0</Text>
@@ -35,7 +35,7 @@ export default function AboutScreen({ navigation }: any) {
 
         <View style={styles.points}>
           <Text style={styles.point}>Anonymous sharing, no judgment</Text>
-          <Text style={styles.point}>Brotherhood built on respect</Text>
+          <Text style={styles.point}>Sisterhood built on respect</Text>
           <Text style={styles.point}>Your privacy stays yours</Text>
         </View>
 
@@ -46,7 +46,7 @@ export default function AboutScreen({ navigation }: any) {
             onPress={() =>
               Alert.alert(
                 'Terms of Service',
-                'By using etete you agree to post respectfully and protect others privacy.'
+                'By using ehete you agree to post respectfully and protect others privacy.'
               )
             }
           />

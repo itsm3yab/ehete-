@@ -66,7 +66,7 @@ export function categoryInitial(cat: string): string {
 }
 
 export function categoryColor(cat: string, mode: 'dark' | 'light' = 'light'): string {
-  return getCategoryPalette(mode)[cat]?.dot ?? '#1d9bf0';
+  return getCategoryPalette(mode)[cat]?.dot ?? '#e11d6a';
 }
 
 export function getCategoryTheme(cat: string, mode: 'dark' | 'light' = 'light') {
@@ -76,4 +76,22 @@ export function getCategoryTheme(cat: string, mode: 'dark' | 'light' = 'light') 
 
 export function estimatedViews(upvotes: number, downvotes: number, replyCount: number): number {
   return Math.max(upvotes + downvotes, 0) * 7 + replyCount * 3 + 12;
+}
+
+/** Short remaining time for self-destruct posts, e.g. "45m left" */
+export function timeLeft(expiresAt: number, now = Date.now()): string {
+  const diff = expiresAt - now;
+  if (diff <= 0) return 'Expired';
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s}s left`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m left`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h left`;
+  const d = Math.floor(h / 24);
+  return `${d}d left`;
+}
+
+export function isExpired(expiresAt?: number | null, now = Date.now()): boolean {
+  return typeof expiresAt === 'number' && expiresAt <= now;
 }

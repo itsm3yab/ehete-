@@ -1,14 +1,14 @@
-# etete
+# ehete (እህቴ)
 
 Private project. Not open source.
 
-A safe space for men and boys to share what they've been holding inside.
+A safe space for women and girls to share what they've been holding inside.
 
-**etete** is an anonymous confession and voting app built as a private brotherhood. Post honestly, browse real stories, vote on questions that matter, and reply with support — without putting your real name on the line.
+**ehete** (እህቴ — "my sister") is an anonymous confession and voting app built as a private sisterhood. Post honestly, browse real stories, vote on questions that matter, and reply with support — without putting your real name on the line.
 
 ## Features
 
-- **Welcome onboarding** — language (English, Amharic, Oromo), light/dark theme, and brother-focused intro slides
+- **Welcome onboarding** — language (English, Amharic, Oromo), light/dark theme, and sister-focused intro slides
 - **Single sign-in** — Continue with Google on the last welcome slide (no separate login screen)
 - **Anonymous confessions** — share under a light identity, not your real name
 - **Feed** — browse posts with categories like Love/Cheating, Family, Work, Mental Health, and more

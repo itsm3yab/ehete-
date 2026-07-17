@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   FlatList,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -22,7 +23,7 @@ import { useAuthGate } from '../components/AuthGate';
 import { Reply, Confession } from '../types';
 import { typography, fontWeight, radius, useColors, ColorPalette } from '../store/theme';
 import { useThemedStyles } from '../store/useThemedStyles';
-import { getCategoryTheme, formatCount, timeAgo, estimatedViews } from '../components/utils';
+import { getCategoryTheme, formatCount, timeAgo, estimatedViews, timeLeft, isExpired } from '../components/utils';
 import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 
 export default function DetailScreen({ route, navigation }: any) {
@@ -63,6 +64,12 @@ export default function DetailScreen({ route, navigation }: any) {
   const isUpvoted = state.upvotedIds.has(current.id);
   const isDownvoted = state.downvotedIds.has(current.id);
   const isSaved = state.savedIds.has(current.id);
+
+  useEffect(() => {
+    if (isExpired(current.expiresAt) || !state.confessions.some((c) => c.id === confession.id)) {
+      navigation.goBack();
+    }
+  }, [current.expiresAt, state.confessions, confession.id, navigation]);
 
   const netVotes = current.upvotes - current.downvotes;
   const views = estimatedViews(current.upvotes, current.downvotes, current.replyCount);
@@ -120,7 +127,7 @@ export default function DetailScreen({ route, navigation }: any) {
 
   const handleShare = useCallback(async () => {
     await Share.share({
-      message: `[${current.category}] ${current.text}\n\nShared from Etete`,
+      message: `[${current.category}] ${current.text}\n\nShared from እህቴ`,
     });
   }, [current]);
 
@@ -148,8 +155,27 @@ export default function DetailScreen({ route, navigation }: any) {
           <Text style={styles.title}>{current.title}</Text>
         )}
 
-        {/* Body */}
-        <Text style={styles.body}>{current.text}</Text>
+        {current.text.length > 0 && (
+          <Text style={styles.body}>{current.text}</Text>
+        )}
+
+        {!!current.imageUri && (
+          <Image
+            source={{ uri: current.imageUri }}
+            style={styles.postImage}
+            resizeMode="cover"
+            accessibilityLabel="Confession image"
+          />
+        )}
+
+        {typeof current.expiresAt === 'number' && (
+          <View style={styles.destructBanner}>
+            <Ionicons name="timer-outline" size={15} color={colors.danger} />
+            <Text style={styles.destructBannerText}>
+              Self-destructs · {timeLeft(current.expiresAt)}
+            </Text>
+          </View>
+        )}
 
         {/* Stats row */}
         <View style={styles.statsRow}>
@@ -395,6 +421,29 @@ function makeDetailStyles(colors: ColorPalette) {
     fontSize: typography.base,
     lineHeight: 24,
     opacity: 0.92,
+  },
+  postImage: {
+    width: '100%' as const,
+    height: 260,
+    borderRadius: radius.md,
+    marginTop: 14,
+    backgroundColor: colors.bgElevated,
+  },
+  destructBanner: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 7,
+    alignSelf: 'flex-start' as const,
+    backgroundColor: colors.dangerDim,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    marginTop: 12,
+  },
+  destructBannerText: {
+    color: colors.danger,
+    fontSize: typography.xs,
+    fontWeight: fontWeight.semibold,
   },
   statsRow: {
     flexDirection: 'row',

@@ -9,7 +9,7 @@ export function navigate(name: string, params?: object) {
   }
 }
 
-/** Only sign-in UI: Welcome last slide (Continue with Google) */
+/** Open the dedicated Login screen inside Auth. */
 export function goToSignIn() {
   if (!navigationRef.isReady()) return;
   navigationRef.dispatch(
@@ -19,7 +19,7 @@ export function goToSignIn() {
         {
           name: 'Auth',
           state: {
-            routes: [{ name: 'Welcome', params: { startAtEnd: true } }],
+            routes: [{ name: 'Login' }],
             index: 0,
           },
         },

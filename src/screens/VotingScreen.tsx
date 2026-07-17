@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../store/AppContext';
 import { useAuthGate } from '../components/AuthGate';
 import { useColors, useTheme, typography, fontWeight, radius, ColorPalette } from '../store/theme';
@@ -154,6 +154,13 @@ export default function VotingScreen({ navigation }: any) {
   const [searchQuery, setSearchQuery] = useState('');
   const [tab, setTab] = useState<'live' | 'results'>('live');
   const isFocused = useIsFocused();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      hideTabBar();
+      return () => showTabBar();
+    }, [hideTabBar, showTabBar])
+  );
 
   React.useEffect(() => {
     if (!isFocused) return;
@@ -516,10 +523,19 @@ export default function VotingScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Back"
+          style={styles.backBtn}
+        >
+          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+        </TouchableOpacity>
         <DrawerAvatarButton
           onPress={openDrawer}
           initial={initial}
           isGuest={isGuest}
+          avatarUri={state.avatarUri}
         />
         <View style={styles.searchWrap}>
           <Ionicons name="search" size={13} color={colors.textMeta} />
@@ -749,6 +765,9 @@ function makeVotingStyles(colors: ColorPalette) {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
       gap: 8,
+    },
+    backBtn: {
+      paddingRight: 2,
     },
     askBtn: {
       flexDirection: 'row',

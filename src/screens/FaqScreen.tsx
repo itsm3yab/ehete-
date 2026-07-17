@@ -21,7 +21,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const FAQS: { q: string; a: string }[] = [
   {
-    q: 'Is etete anonymous?',
+    q: 'Is ehete anonymous?',
     a: 'Yes. Confessions are posted under an anonymous identity. Your real name is never shown on posts or replies unless you choose to reveal it yourself.',
   },
   {
@@ -60,7 +60,7 @@ export default function FaqScreen({ navigation }: any) {
     <SafeAreaView style={styles.container} edges={['top']}>
       <SettingsHeader title="FAQ" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={styles.intro}>Common questions about using etete.</Text>
+        <Text style={styles.intro}>Common questions about using ehete.</Text>
         {FAQS.map((item, i) => {
           const open = openIndex === i;
           return (

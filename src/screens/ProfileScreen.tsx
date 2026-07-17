@@ -92,7 +92,7 @@ export default function ProfileScreen({ navigation }: any) {
             {isGuest ? '@guest' : `@${username.toLowerCase().replace(/\s/g, '_')}`}
           </Text>
           <Text style={styles.bio}>
-            {isGuest ? 'Sign in to unlock your full profile' : 'A brotherhood of honest men'}
+            {isGuest ? 'Sign in to unlock your full profile' : 'A sisterhood of honest women'}
           </Text>
         </View>
 
@@ -144,6 +144,48 @@ export default function ProfileScreen({ navigation }: any) {
               sublabel={isGuest ? 'Sign in to view' : `${savedCount} saved`}
               onPress={() => openAuthed('Saved', 'Sign in to view saved posts.')}
             />
+            <MenuDivider />
+            <MenuItem
+              icon="bar-chart-outline"
+              label="Voting"
+              sublabel="Polls from the sisterhood"
+              onPress={() => navigation.navigate('Voting')}
+            />
+            <MenuDivider />
+            <MenuItem
+              icon="water-outline"
+              label="Cycle Tracker"
+              sublabel="Simple period calendar"
+              onPress={() => {
+                const parent = navigation.getParent?.();
+                if (parent) parent.navigate('Cycle');
+                else navigation.navigate('Cycle');
+              }}
+            />
+            <MenuDivider />
+            <MenuItem
+              icon="warning-outline"
+              label="Sister Alerts"
+              sublabel="Warn sisters about unsafe places"
+              iconColor={colors.danger}
+              onPress={() => {
+                const parent = navigation.getParent?.();
+                if (parent) parent.navigate('SisterAlerts');
+                else navigation.navigate('SisterAlerts');
+              }}
+            />
+            <MenuDivider />
+            <MenuItem
+              icon="search-circle-outline"
+              label="Do You Know Him?"
+              sublabel="Ask sisters before you trust him"
+              iconColor={colors.accent}
+              onPress={() => {
+                const parent = navigation.getParent?.();
+                if (parent) parent.navigate('KnowHim');
+                else navigation.navigate('KnowHim');
+              }}
+            />
           </View>
 
           <Text style={styles.menuSectionLabel}>More</Text>
@@ -157,7 +199,14 @@ export default function ProfileScreen({ navigation }: any) {
             <MenuDivider />
             <MenuItem
               icon="notifications-outline"
-              label="Notifications"
+              label="Alerts"
+              sublabel="Distress signals nearby"
+              onPress={() => navigation.navigate('Notifications')}
+            />
+            <MenuDivider />
+            <MenuItem
+              icon="options-outline"
+              label="Notification settings"
               sublabel="Push, replies, mentions"
               onPress={() => navigation.navigate('NotificationsSettings')}
             />
@@ -178,7 +227,7 @@ export default function ProfileScreen({ navigation }: any) {
             <MenuDivider />
             <MenuItem
               icon="information-circle-outline"
-              label="About Etete"
+              label="About እህቴ"
               sublabel="v1.0.0"
               onPress={() => navigation.navigate('About')}
             />

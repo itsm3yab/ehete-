@@ -10,71 +10,40 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CommonActions, useRoute } from '@react-navigation/native';
-import { useApp } from '../store/AppContext';
 import { usePrefs, AppLanguage, ThemeMode } from '../store/preferences';
-import { typography, fontWeight, radius, useColors, ColorPalette } from '../store/theme';
+import { typography, fontWeight, useColors, ColorPalette } from '../store/theme';
 import { useThemedStyles } from '../store/useThemedStyles';
 import { hapticSelect } from '../utils/haptics';
 
 const { width } = Dimensions.get('window');
-const SWIPE_THRESHOLD = width * 0.3;
 
 type Slide =
-  | {
-      id: string;
-      type: 'prefs';
-      title: string;
-      desc: string;
-    }
+  | { id: string; type: 'prefs' }
   | {
       id: string;
       type: 'info';
       icon: keyof typeof Ionicons.glyphMap;
+      brand?: boolean;
       title: string;
       desc: string;
     };
 
 const slides: Slide[] = [
-  {
-    id: '0',
-    type: 'prefs',
-    title: 'Make It Yours',
-    desc: 'Choose your language and theme first. You can change these later in settings.',
-  },
+  { id: '0', type: 'prefs' },
   {
     id: '1',
     type: 'info',
-    icon: 'people',
-    title: 'Welcome, Brothers',
-    desc: 'This is a safe home for men and boys. Open up, lean on each other, and know you are never alone.',
+    icon: 'heart',
+    brand: true,
+    title: 'እህቴ',
+    desc: 'A private home for girls who need to be heard. You belong here.',
   },
   {
     id: '2',
     type: 'info',
-    icon: 'home',
-    title: 'Share Like Family',
-    desc: 'Talk about what is real. Pressure, love, school, money, pride, pain. No masks. No judgment. Just brothers.',
-  },
-  {
-    id: '3',
-    type: 'info',
     icon: 'shield-checkmark',
-    title: 'You Are Safe Here',
-    desc: 'Stay anonymous. No names, no pressure to perform. Post what you need to say and keep your privacy intact.',
-  },
-  {
-    id: '4',
-    type: 'info',
-    icon: 'bar-chart',
-    title: 'Vote With Your Bros',
-    desc: 'Ask honest questions, cast your vote, and see what other men think. Real talk, real takes, no fake flex.',
-  },
-  {
-    id: '5',
-    type: 'info',
-    icon: 'heart',
-    title: 'Built For Us',
-    desc: 'From young guys finding their way to grown men carrying weight, this space is yours. Jump in when you are ready.',
+    title: 'We saved you a seat',
+    desc: 'Anonymous. Kind. Built for sisters looking out for each other.',
   },
 ];
 
@@ -85,21 +54,20 @@ const LANGUAGES: { id: AppLanguage; label: string }[] = [
 ];
 
 const THEMES: { id: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { id: 'light', label: 'Light', icon: 'sunny' },
-  { id: 'dark', label: 'Dark', icon: 'moon' },
+  { id: 'light', label: 'Light', icon: 'sunny-outline' },
+  { id: 'dark', label: 'Dark', icon: 'moon-outline' },
 ];
 
 export default function WelcomeScreen({ navigation }: any) {
   const styles = useThemedStyles(makeWelcomeStyles);
   const colors = useColors();
-  const { dispatch } = useApp();
   const { prefs, setPref } = usePrefs();
   const route = useRoute<any>();
   const flatRef = useRef<FlatList>(null);
   const lastIndex = slides.length - 1;
   const startAtEnd = !!route.params?.startAtEnd;
   const [index, setIndex] = useState(startAtEnd ? lastIndex : 0);
-  const touchStart = useRef(0);
+  const [listHeight, setListHeight] = useState(0);
 
   const isLast = index === lastIndex;
 
@@ -112,56 +80,40 @@ export default function WelcomeScreen({ navigation }: any) {
   }, [startAtEnd, lastIndex]);
 
   const goMain = useCallback(() => {
-    navigation.dispatch(
-      CommonActions.reset({ index: 0, routes: [{ name: 'Main' }] })
-    );
+    navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Main' }] }));
+  }, [navigation]);
+
+  const goLogin = useCallback(() => {
+    hapticSelect();
+    navigation.navigate('Login');
   }, [navigation]);
 
   const handleNext = useCallback(() => {
-    if (isLast) return;
+    if (isLast) {
+      goLogin();
+      return;
+    }
     flatRef.current?.scrollToIndex({ index: index + 1, animated: true });
-  }, [index, isLast]);
-
-  const handleGoogle = useCallback(() => {
-    dispatch({ type: 'LOGIN', payload: 'User' });
-    goMain();
-  }, [dispatch, goMain]);
-
-  const handleGuest = useCallback(() => {
-    goMain();
-  }, [goMain]);
+  }, [index, isLast, goLogin]);
 
   const goToSlide = useCallback((i: number) => {
     flatRef.current?.scrollToIndex({ index: i, animated: true });
   }, []);
 
   const onMomentumEnd = useCallback((e: any) => {
-    const newIndex = Math.round(e.nativeEvent.contentOffset.x / width);
-    setIndex(newIndex);
+    setIndex(Math.round(e.nativeEvent.contentOffset.x / width));
   }, []);
-
-  const onTouchStart = useCallback((e: any) => {
-    touchStart.current = e.nativeEvent.pageX;
-  }, []);
-
-  const onTouchEnd = useCallback(
-    (e: any) => {
-      const diff = touchStart.current - e.nativeEvent.pageX;
-      if (diff > SWIPE_THRESHOLD && !isLast) handleNext();
-    },
-    [isLast, handleNext]
-  );
 
   const renderSlide = useCallback(
     ({ item }: { item: Slide }) => {
       if (item.type === 'prefs') {
         return (
-          <View style={styles.slide}>
-            <View style={styles.iconWrap}>
-              <Ionicons name="options" size={44} color={colors.accent} />
-            </View>
-            <Text style={styles.slideTitle}>{item.title}</Text>
-            <Text style={styles.slideDesc}>{item.desc}</Text>
+          <View style={[styles.slide, listHeight > 0 && { height: listHeight }]}>
+            <Text style={styles.kicker}>Welcome</Text>
+            <Text style={styles.slideTitle}>Glad you are here</Text>
+            <Text style={styles.slideDesc}>
+              Choose how you want እህቴ to feel. You can change this later.
+            </Text>
 
             <View style={styles.prefsBlock}>
               <Text style={styles.prefsLabel}>Language</Text>
@@ -171,17 +123,14 @@ export default function WelcomeScreen({ navigation }: any) {
                   return (
                     <Pressable
                       key={lang.id}
-                      style={[styles.langChip, active && styles.choiceChipActive]}
+                      style={[styles.choiceChip, active && styles.choiceChipActive]}
                       onPress={() => {
                         if (active) return;
                         hapticSelect();
                         setPref('language', lang.id);
                       }}
                     >
-                      <Text
-                        style={[styles.choiceTitle, active && styles.choiceTitleActive]}
-                        numberOfLines={1}
-                      >
+                      <Text style={[styles.choiceText, active && styles.choiceTextActive]}>
                         {lang.label}
                       </Text>
                     </Pressable>
@@ -189,14 +138,14 @@ export default function WelcomeScreen({ navigation }: any) {
                 })}
               </View>
 
-              <Text style={styles.prefsLabel}>Theme</Text>
-              <View style={styles.choiceRow}>
+              <Text style={styles.prefsLabel}>Appearance</Text>
+              <View style={styles.themeRow}>
                 {THEMES.map((theme) => {
                   const active = prefs.themeMode === theme.id;
                   return (
                     <Pressable
                       key={theme.id}
-                      style={[styles.themeChip, active && styles.choiceChipActive]}
+                      style={[styles.choiceChip, styles.themeChip, active && styles.choiceChipActive]}
                       onPress={() => {
                         if (active) return;
                         hapticSelect();
@@ -205,12 +154,10 @@ export default function WelcomeScreen({ navigation }: any) {
                     >
                       <Ionicons
                         name={theme.icon}
-                        size={36}
+                        size={18}
                         color={active ? colors.accent : colors.textSecondary}
                       />
-                      <Text
-                        style={[styles.choiceTitle, active && styles.choiceTitleActive]}
-                      >
+                      <Text style={[styles.choiceText, active && styles.choiceTextActive]}>
                         {theme.label}
                       </Text>
                     </Pressable>
@@ -223,98 +170,91 @@ export default function WelcomeScreen({ navigation }: any) {
       }
 
       return (
-        <View style={styles.slide}>
-          <View style={styles.iconWrap}>
-            <Ionicons name={item.icon} size={48} color={colors.accent} />
+        <View style={[styles.slide, listHeight > 0 && { height: listHeight }]}>
+          <View style={styles.iconCircle}>
+            <Ionicons name={item.icon} size={32} color={colors.accent} />
           </View>
-          <Text style={styles.slideTitle}>{item.title}</Text>
+          <Text style={[styles.slideTitle, item.brand && styles.brandTitle]}>{item.title}</Text>
+          {item.brand && <Text style={styles.brandSub}>ehete · my sister</Text>}
           <Text style={styles.slideDesc}>{item.desc}</Text>
         </View>
       );
     },
-    [styles, colors.accent, colors.textSecondary, prefs.language, prefs.themeMode, setPref]
+    [styles, colors, prefs.language, prefs.themeMode, setPref, listHeight]
   );
 
-  const keyExtractor = useCallback((item: Slide) => item.id, []);
-
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.bg }]}
-      edges={['top', 'bottom']}
-    >
-      <TouchableOpacity
-        style={styles.skipBtn}
-        onPress={() => goToSlide(lastIndex)}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        accessibilityRole="button"
-        accessibilityLabel="Skip to sign in"
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <View style={styles.topBar}>
+        <Text style={styles.topBrand}>እህቴ</Text>
+        {!isLast ? (
+          <TouchableOpacity onPress={() => goToSlide(lastIndex)} hitSlop={12}>
+            <Text style={styles.skipText}>Skip</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 36 }} />
+        )}
+      </View>
+
+      <View
+        style={styles.listWrap}
+        onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
       >
-        <Ionicons name="close" size={18} color={colors.textMeta} />
-      </TouchableOpacity>
+        {listHeight > 0 && (
+          <FlatList
+            ref={flatRef}
+            data={slides}
+            renderItem={renderSlide}
+            keyExtractor={(item) => item.id}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            bounces={false}
+            onMomentumScrollEnd={onMomentumEnd}
+            scrollEnabled={!isLast}
+            initialScrollIndex={startAtEnd ? lastIndex : 0}
+            getItemLayout={(_, i) => ({
+              length: width,
+              offset: width * i,
+              index: i,
+            })}
+            onScrollToIndexFailed={(info) => {
+              setTimeout(() => {
+                flatRef.current?.scrollToIndex({ index: info.index, animated: false });
+              }, 50);
+            }}
+          />
+        )}
+      </View>
 
-      <FlatList
-        ref={flatRef}
-        data={slides}
-        renderItem={renderSlide}
-        keyExtractor={keyExtractor}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        bounces={false}
-        onMomentumScrollEnd={onMomentumEnd}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        scrollEnabled={!isLast}
-        initialScrollIndex={startAtEnd ? lastIndex : 0}
-        getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-        onScrollToIndexFailed={(info) => {
-          setTimeout(() => {
-            flatRef.current?.scrollToIndex({ index: info.index, animated: false });
-          }, 50);
-        }}
-      />
-
-      <View style={styles.bottomSection}>
+      <View style={styles.bottom}>
         <View style={styles.dots}>
           {slides.map((_, i) => (
-            <TouchableOpacity
-              key={i}
-              onPress={() => goToSlide(i)}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-            >
-              <View style={[styles.dot, i === index && styles.dotActive]} />
-            </TouchableOpacity>
+            <View key={i} style={[styles.dot, i === index && styles.dotActive]} />
           ))}
         </View>
 
         {!isLast ? (
           <Pressable
-            style={({ pressed }) => [styles.nextBtn, pressed && { opacity: 0.85 }]}
+            style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.9 }]}
             onPress={handleNext}
           >
-            <Text style={styles.nextBtnText}>Next</Text>
-            <Ionicons name="arrow-forward" size={18} color="#fff" />
+            <Text style={styles.primaryBtnText}>Continue</Text>
           </Pressable>
         ) : (
           <View style={styles.actions}>
             <Pressable
-              style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.85 }]}
-              onPress={handleGoogle}
+              style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.9 }]}
+              onPress={goLogin}
             >
-              <Ionicons name="logo-google" size={20} color={colors.textPrimary} />
-              <Text style={styles.googleBtnText}>Continue with Google</Text>
+              <Text style={styles.primaryBtnText}>Get started</Text>
             </Pressable>
-
-            <TouchableOpacity onPress={handleGuest} style={styles.guestBtn}>
-              <Text style={styles.guestText}>Continue as Guest</Text>
+            <TouchableOpacity onPress={goMain} style={styles.guestBtn}>
+              <Text style={styles.guestText}>Continue as guest</Text>
             </TouchableOpacity>
           </View>
         )}
       </View>
-
-      <Text style={styles.disclaimer}>
-        By continuing, you agree to our Terms of Service and Privacy Policy.
-      </Text>
     </SafeAreaView>
   );
 }
@@ -324,180 +264,166 @@ function makeWelcomeStyles(colors: ColorPalette) {
     container: {
       flex: 1,
       backgroundColor: colors.bg,
-      paddingBottom: 16,
     },
-    skipBtn: {
-      position: 'absolute' as const,
-      top: 10,
-      right: 16,
-      zIndex: 10,
-      width: 28,
-      height: 28,
+    topBar: {
+      flexDirection: 'row' as const,
       alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      opacity: 0.35,
+      justifyContent: 'space-between' as const,
+      paddingHorizontal: 24,
+      paddingTop: 8,
+      paddingBottom: 4,
+    },
+    topBrand: {
+      color: colors.accent,
+      fontSize: typography.base,
+      fontWeight: fontWeight.bold,
+    },
+    skipText: {
+      color: colors.textMeta,
+      fontSize: typography.sm,
+      fontWeight: fontWeight.medium,
+    },
+    listWrap: {
+      flex: 1,
     },
     slide: {
       width,
-      paddingHorizontal: 28,
-      alignItems: 'center' as const,
+      paddingHorizontal: 32,
       justifyContent: 'center' as const,
-      paddingTop: 12,
+      alignItems: 'center' as const,
     },
-    iconWrap: {
-      width: 88,
-      height: 88,
-      borderRadius: radius.xl,
+    kicker: {
+      color: colors.accent,
+      fontSize: typography.xs,
+      fontWeight: fontWeight.bold,
+      letterSpacing: 1.2,
+      textTransform: 'uppercase' as const,
+      marginBottom: 10,
+    },
+    iconCircle: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
       backgroundColor: colors.accentDim,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      marginBottom: 24,
+      marginBottom: 22,
     },
     slideTitle: {
-      fontSize: typography.xxl,
-      fontWeight: fontWeight.extrabold,
+      fontSize: 26,
+      fontWeight: fontWeight.bold,
       color: colors.textPrimary,
       textAlign: 'center' as const,
+      letterSpacing: -0.4,
+      marginBottom: 10,
+    },
+    brandTitle: {
+      fontSize: 36,
+      color: colors.accent,
+      marginBottom: 4,
+    },
+    brandSub: {
+      color: colors.textMeta,
+      fontSize: typography.xs,
       marginBottom: 12,
     },
     slideDesc: {
-      fontSize: typography.md,
+      fontSize: typography.sm,
       color: colors.textSecondary,
       textAlign: 'center' as const,
-      lineHeight: 24,
-      paddingHorizontal: 8,
+      lineHeight: 22,
+      maxWidth: 300,
     },
     prefsBlock: {
       width: '100%',
-      marginTop: 28,
-      gap: 12,
+      marginTop: 32,
+      gap: 10,
     },
     prefsLabel: {
-      color: colors.textSecondary,
-      fontSize: 12,
+      color: colors.textMeta,
+      fontSize: typography.xs,
       fontWeight: fontWeight.semibold,
-      letterSpacing: 0.4,
-      textTransform: 'uppercase' as const,
       marginTop: 6,
-    },
-    choiceRow: {
-      flexDirection: 'row' as const,
-      gap: 12,
+      marginBottom: 2,
     },
     langRow: {
       flexDirection: 'row' as const,
-      flexWrap: 'wrap' as const,
-      gap: 10,
+      gap: 8,
     },
-    langChip: {
-      width: '31%',
-      minHeight: 64,
+    themeRow: {
+      flexDirection: 'row' as const,
+      gap: 8,
+    },
+    choiceChip: {
+      flex: 1,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
-      paddingVertical: 18,
-      paddingHorizontal: 8,
-      borderRadius: radius.lg,
+      paddingVertical: 13,
+      borderRadius: 12,
+      backgroundColor: colors.bgInput,
       borderWidth: 1.5,
-      borderColor: colors.border,
-      backgroundColor: colors.bgElevated,
+      borderColor: 'transparent',
     },
     themeChip: {
-      flex: 1,
-      aspectRatio: 1,
-      maxHeight: 120,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      gap: 10,
-      paddingVertical: 16,
-      paddingHorizontal: 12,
-      borderRadius: 20,
-      borderWidth: 1.5,
-      borderColor: colors.border,
-      backgroundColor: colors.bgElevated,
+      flexDirection: 'row' as const,
+      gap: 8,
     },
     choiceChipActive: {
-      borderColor: colors.accent,
       backgroundColor: colors.accentDim,
+      borderColor: colors.accent,
     },
-    choiceTitle: {
-      color: colors.textPrimary,
+    choiceText: {
+      color: colors.textSecondary,
       fontWeight: fontWeight.semibold,
-      fontSize: typography.base,
+      fontSize: typography.sm,
     },
-    choiceTitleActive: {
+    choiceTextActive: {
       color: colors.accent,
-      fontWeight: fontWeight.bold,
     },
-    bottomSection: {
-      paddingHorizontal: 28,
-      gap: 28,
-      paddingTop: 12,
+    bottom: {
+      paddingHorizontal: 24,
+      paddingBottom: 16,
+      paddingTop: 8,
+      gap: 16,
     },
     dots: {
       flexDirection: 'row' as const,
       justifyContent: 'center' as const,
-      gap: 8,
+      gap: 6,
     },
     dot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
+      width: 6,
+      height: 6,
+      borderRadius: 3,
       backgroundColor: colors.border,
     },
     dotActive: {
-      width: 24,
+      width: 18,
       backgroundColor: colors.accent,
-      borderRadius: 4,
     },
-    nextBtn: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-      gap: 8,
-      backgroundColor: colors.accent,
-      paddingVertical: 16,
-      borderRadius: radius.full,
-    },
-    nextBtnText: {
-      color: '#fff',
-      fontWeight: fontWeight.bold,
-      fontSize: typography.base,
-      letterSpacing: 0.2,
-    },
-    actions: {
-      gap: 12,
-    },
-    googleBtn: {
+    primaryBtn: {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       gap: 10,
+      backgroundColor: colors.accent,
       paddingVertical: 15,
-      borderRadius: radius.full,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.bgElevated,
+      borderRadius: 14,
     },
-    googleBtnText: {
-      color: colors.textPrimary,
-      fontWeight: fontWeight.semibold,
+    primaryBtnText: {
+      color: '#fff',
+      fontWeight: fontWeight.bold,
       fontSize: typography.base,
     },
+    actions: { gap: 12 },
     guestBtn: {
       alignItems: 'center' as const,
-      paddingVertical: 10,
+      paddingVertical: 6,
     },
     guestText: {
       color: colors.textSecondary,
       fontSize: typography.sm,
       fontWeight: fontWeight.medium,
-    },
-    disclaimer: {
-      color: colors.textMeta,
-      fontSize: typography.xs,
-      textAlign: 'center' as const,
-      paddingTop: 20,
-      paddingHorizontal: 28,
     },
   };
 }

@@ -3,14 +3,24 @@ import { StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, typography, fontWeight, radius, ColorPalette } from '../store/theme';
 
-export function SettingsHeader({ title, onBack }: { title: string; onBack: () => void }) {
+export function SettingsHeader({
+  title,
+  onBack,
+}: {
+  title: string;
+  onBack?: () => void;
+}) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={onBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-        <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-      </TouchableOpacity>
+      {onBack ? (
+        <TouchableOpacity onPress={onBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+        </TouchableOpacity>
+      ) : (
+        <View style={{ width: 22 }} />
+      )}
       <Text style={styles.headerTitle}>{title}</Text>
       <View style={{ width: 22 }} />
     </View>

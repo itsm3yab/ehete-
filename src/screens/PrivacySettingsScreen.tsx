@@ -14,7 +14,7 @@ import {
   SettingsToggle,
 } from '../components/SettingsUI';
 
-const BLOCKED_KEY = 'etete_blocked_v1';
+const BLOCKED_KEY = 'ehete_blocked_v1';
 
 export default function PrivacySettingsScreen({ navigation }: any) {
   const styles = useThemedStyles(makePrivacyStyles);
@@ -68,6 +68,17 @@ export default function PrivacySettingsScreen({ navigation }: any) {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]} edges={['top']}>
       <SettingsHeader title="Privacy & Safety" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <SettingsSection title="Screen privacy" />
+        <SettingsCard>
+          <SettingsToggle
+            icon="phone-portrait-outline"
+            label="Block screenshots & recording"
+            description="Hides the app from screenshots, screen recording, and the recent-apps preview"
+            value={prefs.preventScreenshots}
+            onValueChange={(v) => setPref('preventScreenshots', v)}
+          />
+        </SettingsCard>
+
         <SettingsSection title="Visibility" />
         <SettingsCard>
           <SettingsToggle

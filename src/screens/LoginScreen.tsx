@@ -1,8 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -12,11 +17,19 @@ import { CommonActions } from '@react-navigation/native';
 import { useApp } from '../store/AppContext';
 import { typography, fontWeight, radius, useColors, ColorPalette } from '../store/theme';
 import { useThemedStyles } from '../store/useThemedStyles';
+import { loginAccount } from '../utils/localAuth';
+import { hapticSelect } from '../utils/haptics';
 
 export default function LoginScreen({ navigation }: any) {
   const styles = useThemedStyles(makeLoginStyles);
   const colors = useColors();
   const { dispatch } = useApp();
+
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const goMain = () => {
     navigation.dispatch(
@@ -24,155 +37,289 @@ export default function LoginScreen({ navigation }: any) {
     );
   };
 
-  const handleGoogle = () => {
-    dispatch({ type: 'LOGIN', payload: 'User' });
+  const finishLogin = (username: string) => {
+    dispatch({ type: 'LOGIN', payload: username });
     goMain();
   };
 
-  const handleGuest = () => {
-    goMain();
+  const handleLogin = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const result = await loginAccount(identifier, password);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      hapticSelect();
+      finishLogin(result.username);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogle = () => {
+    hapticSelect();
+    finishLogin('User');
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <TouchableOpacity
-        style={styles.back}
-        onPress={() => {
-          if (navigation.canGoBack()) navigation.goBack();
-          else goMain();
-        }}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-      </TouchableOpacity>
-
-      <View style={styles.body}>
-        <View style={styles.iconWrap}>
-          <Ionicons name="chatbubbles" size={40} color={colors.accent} />
-        </View>
-        <Text style={styles.sub}>
-          Sign in to share your story, connect with other men, and speak freely.
-        </Text>
-
-        <Pressable
-          style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.85 }]}
-          onPress={handleGoogle}
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="logo-google" size={20} color={colors.textPrimary} />
-          <Text style={styles.googleBtnText}>Sign in with Google</Text>
-        </Pressable>
+          <TouchableOpacity
+            style={styles.back}
+            onPress={() => {
+              if (navigation.canGoBack()) navigation.goBack();
+              else navigation.navigate('Welcome');
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
 
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.dividerLine} />
-        </View>
+          <Text style={styles.brand}>እህቴ</Text>
+          <Text style={styles.title}>Welcome back</Text>
+          <Text style={styles.sub}>
+            Sign in with your phone number or username to continue.
+          </Text>
 
-        <TouchableOpacity style={styles.guestBtn} onPress={handleGuest}>
-          <Ionicons name="person-outline" size={18} color={colors.textSecondary} />
-          <Text style={styles.guestText}>Continue as Guest</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.field}>
+            <Text style={styles.label}>Phone or username</Text>
+            <View style={styles.inputWrap}>
+              <Ionicons name="person-outline" size={18} color={colors.textMeta} />
+              <TextInput
+                style={styles.input}
+                value={identifier}
+                onChangeText={setIdentifier}
+                placeholder="09… or your username"
+                placeholderTextColor={colors.textMeta}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="default"
+                returnKeyType="next"
+              />
+            </View>
+          </View>
 
-      <Text style={styles.disclaimer}>
-        By continuing, you agree to our Terms of Service and Privacy Policy.
-      </Text>
+          <View style={styles.field}>
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.inputWrap}>
+              <Ionicons name="lock-closed-outline" size={18} color={colors.textMeta} />
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Your password"
+                placeholderTextColor={colors.textMeta}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword((v) => !v)}
+                hitSlop={8}
+                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={18}
+                  color={colors.textMeta}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {!!error && <Text style={styles.error}>{error}</Text>}
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.primaryBtn,
+              pressed && { opacity: 0.9 },
+              loading && { opacity: 0.7 },
+            ]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.primaryBtnText}>Sign in</Text>
+            )}
+          </Pressable>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.85 }]}
+            onPress={handleGoogle}
+          >
+            <Ionicons name="logo-google" size={18} color={colors.textPrimary} />
+            <Text style={styles.googleBtnText}>Continue with Google</Text>
+          </Pressable>
+
+          <TouchableOpacity style={styles.guestBtn} onPress={goMain}>
+            <Text style={styles.guestText}>Continue as guest</Text>
+          </TouchableOpacity>
+
+          <View style={styles.switchRow}>
+            <Text style={styles.switchText}>New here? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+              <Text style={styles.switchLink}>Create an account</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-
-
 function makeLoginStyles(colors: ColorPalette) {
   return {
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    paddingHorizontal: 28,
-    paddingBottom: 16,
-  },
-  back: {
-    alignSelf: 'flex-start',
-    paddingVertical: 12,
-  },
-  body: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 60,
-  },
-  iconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: radius.lg,
-    backgroundColor: colors.accentDim,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 28,
-  },
-  sub: {
-    fontSize: typography.base,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 36,
-    paddingHorizontal: 12,
-  },
-  googleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bgElevated,
-    width: '100%',
-  },
-  googleBtnText: {
-    color: colors.textPrimary,
-    fontWeight: fontWeight.semibold,
-    fontSize: typography.base,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginVertical: 24,
-    width: '100%',
-  },
-  dividerLine: {
-    flex: 1,
-    height: 0.5,
-    backgroundColor: colors.border,
-  },
-  dividerText: {
-    color: colors.textSecondary,
-    fontSize: typography.sm,
-  },
-  guestBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-    width: '100%',
-  },
-  guestText: {
-    color: colors.textSecondary,
-    fontSize: typography.sm,
-    fontWeight: fontWeight.medium,
-  },
-  disclaimer: {
-    color: colors.textMeta,
-    fontSize: typography.xs,
-    textAlign: 'center',
-    paddingBottom: 4,
-  },
-};
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+    },
+    flex: { flex: 1 },
+    scroll: {
+      paddingHorizontal: 24,
+      paddingBottom: 28,
+      flexGrow: 1,
+    },
+    back: {
+      alignSelf: 'flex-start' as const,
+      paddingVertical: 10,
+      marginBottom: 8,
+    },
+    brand: {
+      color: colors.accent,
+      fontSize: typography.sm,
+      fontWeight: fontWeight.bold,
+      marginBottom: 10,
+    },
+    title: {
+      color: colors.textPrimary,
+      fontSize: 28,
+      fontWeight: fontWeight.extrabold,
+      letterSpacing: -0.4,
+      marginBottom: 8,
+    },
+    sub: {
+      color: colors.textSecondary,
+      fontSize: typography.sm,
+      lineHeight: 21,
+      marginBottom: 28,
+    },
+    field: {
+      marginBottom: 16,
+      gap: 8,
+    },
+    label: {
+      color: colors.textSecondary,
+      fontSize: typography.sm,
+      fontWeight: fontWeight.semibold,
+    },
+    inputWrap: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 10,
+      backgroundColor: colors.bgInput,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      paddingHorizontal: 14,
+      paddingVertical: Platform.OS === 'ios' ? 14 : 4,
+    },
+    input: {
+      flex: 1,
+      color: colors.textPrimary,
+      fontSize: typography.base,
+      paddingVertical: Platform.OS === 'ios' ? 0 : 10,
+    },
+    error: {
+      color: colors.danger,
+      fontSize: typography.sm,
+      marginBottom: 12,
+    },
+    primaryBtn: {
+      backgroundColor: colors.accent,
+      borderRadius: 14,
+      paddingVertical: 15,
+      alignItems: 'center' as const,
+      marginTop: 8,
+    },
+    primaryBtnText: {
+      color: '#fff',
+      fontWeight: fontWeight.bold,
+      fontSize: typography.base,
+    },
+    divider: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 12,
+      marginVertical: 22,
+    },
+    dividerLine: {
+      flex: 1,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.border,
+    },
+    dividerText: {
+      color: colors.textMeta,
+      fontSize: typography.sm,
+    },
+    googleBtn: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 10,
+      paddingVertical: 14,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.bgElevated,
+    },
+    googleBtnText: {
+      color: colors.textPrimary,
+      fontWeight: fontWeight.semibold,
+      fontSize: typography.base,
+    },
+    guestBtn: {
+      alignItems: 'center' as const,
+      paddingVertical: 16,
+    },
+    guestText: {
+      color: colors.textSecondary,
+      fontSize: typography.sm,
+      fontWeight: fontWeight.medium,
+    },
+    switchRow: {
+      flexDirection: 'row' as const,
+      justifyContent: 'center' as const,
+      marginTop: 'auto' as const,
+      paddingTop: 12,
+    },
+    switchText: {
+      color: colors.textSecondary,
+      fontSize: typography.sm,
+    },
+    switchLink: {
+      color: colors.accent,
+      fontWeight: fontWeight.semibold,
+      fontSize: typography.sm,
+    },
+  };
 }

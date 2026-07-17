@@ -48,7 +48,7 @@ export default function HelpSupportScreen({ navigation }: any) {
             <Ionicons name="heart" size={22} color={colors.upvote} />
           </View>
           <View style={styles.crisisContent}>
-            <Text style={styles.crisisTitle}>You're not alone, brother</Text>
+            <Text style={styles.crisisTitle}>You're not alone, sister</Text>
             <Text style={styles.crisisText}>
               If you're struggling or feeling overwhelmed, trained counselors are available 24/7.
               Reaching out takes real strength.
@@ -72,7 +72,7 @@ export default function HelpSupportScreen({ navigation }: any) {
 
         <ResourceCard
           iconName="chatbubble-ellipses-outline"
-          iconBg="#1d9bf022"
+          iconBg="#e11d6a22"
           iconColor={colors.accent}
           title="Crisis Text Line"
           description="Text HOME to 741741 for free crisis counseling, available 24/7."
@@ -84,8 +84,8 @@ export default function HelpSupportScreen({ navigation }: any) {
 
         <ResourceCard
           iconName="search-outline"
-          iconBg="#7c3aed22"
-          iconColor="#c084fc"
+          iconBg="#fce7f1"
+          iconColor="#e11d6a"
           title="Find a Therapist"
           description="Browse licensed therapists and mental health professionals near you."
           actionLabel="Open Directory"
@@ -103,7 +103,7 @@ export default function HelpSupportScreen({ navigation }: any) {
           description="Reach out for help with your account or to report a concern."
           actionLabel="Email"
           onAction={() =>
-            Linking.openURL('mailto:support@etete.app?subject=Support Request')
+            Linking.openURL('mailto:support@ehete.app?subject=Support Request')
           }
         />
 
@@ -112,7 +112,7 @@ export default function HelpSupportScreen({ navigation }: any) {
           iconBg={colors.bgElevated}
           iconColor={colors.textSecondary}
           title="FAQ"
-          description="Answers to common questions about using Etete."
+          description="Answers to common questions about using እህቴ."
           actionLabel="View"
           onAction={() => navigation.navigate('Faq')}
         />
@@ -121,7 +121,7 @@ export default function HelpSupportScreen({ navigation }: any) {
         <View style={styles.guidelinesCard}>
           <Ionicons name="shield-checkmark-outline" size={18} color={colors.accent} />
           <Text style={styles.guidelinesText}>
-            Etete is a brotherhood built on respect. Look out for one another.
+            እህቴ is a sisterhood built on respect. Look out for one another.
             Harmful content will be removed.
           </Text>
         </View>

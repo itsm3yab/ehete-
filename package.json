@@ -1,5 +1,5 @@
 {
-  "name": "etete",
+  "name": "ehete",
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
@@ -12,6 +12,8 @@
     "expo-blur": "~57.0.2",
     "expo-haptics": "~57.0.1",
     "expo-image-picker": "~57.0.4",
+    "expo-location": "~57.0.5",
+    "expo-screen-capture": "~57.0.1",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.0",
@@ -25,8 +27,8 @@
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web"
   },
   "private": true

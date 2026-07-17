@@ -1,23 +1,31 @@
 {
   "expo": {
-    "name": "etete",
-    "slug": "etete",
+    "name": "እህቴ",
+    "slug": "ehete",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "androidStatusBar": {
       "barStyle": "dark-content",
-      "backgroundColor": "#ffffff",
+      "backgroundColor": "#fff7fa",
       "translucent": false
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "እህቴ uses your location to alert nearby sisters if you send a distress signal."
+      }
     },
     "android": {
+      "package": "com.itsm3yab.ehete",
       "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "adaptiveIcon": {
-        "backgroundColor": "#E8F4FC",
+        "backgroundColor": "#FFE4EF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -29,12 +37,35 @@
     },
     "plugins": [
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow እህቴ to attach photos to your confessions.",
+          "cameraPermission": "Allow እህቴ to take photos for your confessions."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow እህቴ to use your location to alert nearby sisters during a distress signal."
+        }
+      ],
+      [
         "expo-status-bar",
         {
           "style": "dark",
           "hidden": false
         }
       ]
-    ]
+    ],
+    "extra": {
+      "expo-status-bar": {
+        "style": "dark",
+        "hidden": false
+      },
+      "eas": {
+        "projectId": "c38901f2-2ff1-48d4-ba7a-1e1e21531544"
+      }
+    },
+    "owner": "fuckedup582"
   }
 }
